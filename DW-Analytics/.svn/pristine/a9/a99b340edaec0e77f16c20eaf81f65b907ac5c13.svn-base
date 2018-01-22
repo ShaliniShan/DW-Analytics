@@ -1,0 +1,23 @@
+# --- DO NOT ALTER THIS FILE UNLESS OTHERWISE DIRECTED ---
+Options +FollowSymlinks
+RewriteEngine on
+RewriteRule ^Organizer/$ Organizer.php [NC,L]
+RewriteCond %{THE_REQUEST} (\s|%20)
+RewriteRule ^([^\s|%20]+)(?:\s|%20)+([^\s%20]+)((?:\s|%20)+.*)$ $1-$2$3 [N,DPI]
+RewriteRule ^([^\s|%20]+)(?:\s|%20)+(.*)$ /$1-$2 [R=301,DPI]
+RewriteRule ^login/$ login.php [NC,L]
+RewriteRule ^login/([0-9]+)$ login.php?logout=$1 [NC,L]
+RewriteRule ^Organizer/([0-9a-zA-Z]+)/([0-9a-zA-Z_]+)$ Organizer.php?page=$1&action=$2 [NC,L]
+RewriteRule ^Organizer/([0-9a-zA-Z]+)/(.+)/(.+)/(.+)/(.+)$ Organizer.php?page=$1&action=$2&event=$3&specific=$4&class=$5 [NC,L]
+RewriteRule ^Organizer/([0-9a-zA-Z]+)/(.+)/(.+)/(.+)$ Organizer.php?page=$1&action=$2&event=$3&specific=$4 [NC,L]
+RewriteRule ^Organizer/([0-9a-zA-Z]+)/([0-9a-zA-Z\-\.]+)$ Organizer.php?page=$1&event=$2 [NC,L]
+RewriteRule ^Organizer/([0-9a-zA-Z]+)/([0-9a-zA-Z\-\.]+)/([0-9a-zA-Z\_]+)$ Organizer.php?page=$1&event=$2&action=$3 [NC,L]
+RewriteEngine off
+RewriteEngine on
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /agenda.php [L,NC,QSA]
+# --- Compresses Files based on extension ---
+<files *.html,*.php,*.js,*.css,*.png,*.jpg,*.jpeg>
+SetOutputFilter DEFLATE
+</files>

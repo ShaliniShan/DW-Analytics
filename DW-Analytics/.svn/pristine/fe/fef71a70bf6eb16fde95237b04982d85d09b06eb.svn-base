@@ -1,0 +1,67 @@
+var populateTable = (function () {
+	var actual_length = 0;
+
+	/**
+	 * Builds the Datatable based on the specific info clicked
+	 * @param  {String} $event The eventId of the chosen graph
+	 * @param  {String} $title The 
+	 * @param  {[type]} $type  [description]
+	 * @param  {[type]} $extra [description]
+	 * @return {[type]}        [description]
+	 */
+	function buildTableOrg($event, $title, $type, $extra) {
+		$.ajax({
+			type: 'POST',
+			url: "/pages/specific/organizer_list/organizer_table.php",
+			data: {id : $event, tb : $title, tm : $type, ex : $extra },
+			timeout: 10000,
+			success: function (data) {
+				$("#ajax_table").css("display", "block");
+				var table = $("#records").dataTable();
+				table.fnClearTable();
+				if (data == '' || data == null) { console.log('No Data returned'); return; }
+				var regex = /<\/tr>/g;
+				var lastIndexArray = [];
+				var len = data.match(regex).length;
+				publicAPI.getLength = $("#records")[0].tHead.childElementCount;
+				publicAPI.getThird = $("#records")[0].clientWidth/3;
+				for (var i = 0; i < len; i++) {
+					var	sub = regex.exec(data);
+					lastIndexArray.push(regex.lastIndex);
+					if (lastIndexArray.length == 1)
+						table.DataTable().row.add($(data.substring(0, lastIndexArray[i]))).draw();
+					else if (lastIndexArray.length > 1) {
+						table.DataTable().row.add($(data.substring(lastIndexArray[i-1], lastIndexArray[i]))).draw();
+					} else {
+						console.log("Cannot add row");
+					}
+				}
+			},
+			error: function(request, status, err) {
+				if(status == 'timeout') {
+					alert('Ajax took too long');
+				} else {
+					console.log(err.getMessage());
+				}
+			}
+		});
+	}
+
+	function deleteInfo($id, $table, $row) {
+		$.post("/pages/modules/admin/delete_info.php", {id : $id, class : $table}, function (data) {
+			$row.style.display = "none";
+		});
+	}
+	/**
+	 * @return Object      for the iife to call interanl methods
+	 * @method createTable creates table based on ajax call
+	 * @method deleteRow   removes specific row and ajax call deletes from backend
+	 * @static getLength   returns the length of entries in the table
+	 */
+	var publicAPI = {
+		createTable : buildTableOrg,
+		deleteRow : deleteInfo,
+		getLength : actual_length
+	};
+	return publicAPI;
+})();

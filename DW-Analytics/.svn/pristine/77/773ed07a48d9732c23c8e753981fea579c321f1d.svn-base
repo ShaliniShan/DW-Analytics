@@ -1,0 +1,125 @@
+<?php
+	ini_set("display_errors", 'off');
+	include_once("pages/modules/config.php");
+	include_once("pages/modules/admin/mainhead.php");
+	$pageTitle = "BEEP Analytics | Digital Wavefront";
+	include_once('head.php');
+	echo '<body class="framed main-scrollable">';
+	echo '<div class="wrapper">';
+	include_once("pages/modules/admin/header.php");
+	include_once("pages/modules/admin/dashboard.php");
+	echo "</div>";
+	include_once("pages/modules/admin/core.php");
+?>
+	<script>
+	$(document).ready(function () {
+      var table =  $('#records').DataTable({
+					dom: 'Bfrtip',
+					buttons: [
+						{
+			                extend: 'csv',
+			                title: ((barGraph ? barGraph.fileName : smallBarGraph.fileName) + '-' + (barGraph ? barGraph.specific_file : smallBarGraph.specific_file) + '-details')
+			            },
+					],
+          "paging": true,
+          "lengthChange": true,
+          "searching": true,
+          "ordering": true,
+          "info": true,
+          "autoWidth": false
+      });
+	  $(document).on({
+		ajaxStart: function () {
+			$("#testing").addClass("loading");
+		},
+		ajaxStop: function () {
+			$("#testing").removeClass("loading");
+		},
+		ajaxError: function () {
+			$('#testing').removeClass("loading");
+		}
+	  });
+	  $(".delete_chosen").on("click", function (event) {
+	  	var $id = $(this).attr("data-info");
+	  	var $table = $(this).attr("data-info2");
+	  	var $row = $(this)[0].parentElement.parentElement;
+	  	if($("#delete_node").click()) {
+		  	$("#delete_node").on('click', function (event) {
+		  		populateTable.deleteRow($id, $table, $row);
+		  	});
+		} else {
+		  	populateTable.deleteRow($id, $table, $row);
+		}
+	  });
+	  function format (d) {
+	  		var extra = (d.length - 1) - populateTable.getLength,
+				table = '<table cellpadding="5" cellspacing="30" border="0" style="position:relative;left:6%;">',
+				rorl = 0;
+	  		for (var i = 0; i < extra; i++) {
+	  			rorl = ((i % 2) === 0 || i === 0) ? 'pull-left' : 'pull-right';
+	  			var paddlr = (rorl === "pull-right" ? 'padding-left: 80px;' : 'padding-right: 80px;');
+	  			table += (rorl === 'pull-left' ? '<tr>' : '') +'<td style="'+ paddlr +'">'+ d[populateTable.getLength+i+1] +'</td>'+ (rorl ==='pull-right' ? '</tr>' : '');
+	  		}
+			table += '</table>';
+	  		return table;
+	  }
+	  $('#records tbody').on('click', 'td.details-control', function () {
+        var tr = $(this).closest('tr');
+        var row = table.row(tr);
+        if (row.child.isShown()) {
+            // This row is already open - close it
+            row.child.hide();
+            tr.removeClass('shown');
+        }
+        else {
+            // Open this row
+            row.child(format(row.data())).show();
+            tr.addClass('shown');
+        }
+      });
+	   $(function() {
+	    $("#sortable").sortable({
+	        stop: function() {
+	           var order = $("#sortable").sortable("serialize", {key:'position[]'});
+	           $inputs = $(".hidden_position");
+	           for (var i = 0; i < $inputs.length; i++) {
+	           	$inputs[i].setAttribute("name", order.split('position[]=')[i+1]);
+	           }
+	        }
+   		 });
+	    if($('.logo_ex')[0] !== undefined && $(".logo_ex")[0].value > 0) $('.file-caption-name')[0].innerHTML = ($(".logo_ex")[0].value);
+	   	});
+	 	$('.table_pick > tbody > tr').on('click', function (event) {
+	 		if ($(this).attr('data-href') !== undefined)
+	    		document.location = '' + $(this).attr('data-href');
+	 	});
+	 	$('.date_pick').datetimepicker({minDate: new Date()});
+		$(".logo_ex").fileinput({'showUpload':false, 'previewFileType':'any', 'showPreview' : false});
+		$(".edit_direct").on("click", function (event) {
+			document.location = '/Organizer' + $(this).attr('data-href');
+		});
+		$(function() {
+		    $(document).tooltip();
+				$(".download_btn").on("click", function (event) {
+					downloadable.graph(barGraph.eventType ? barGraph.eventType : smallBarGraph.eventType);
+				});
+		});
+		<?php
+			if (isset($_GET['specific']) && $parseAPI->isBeacon($_GET['specific'])) {
+				echo "$(function() {
+			 		tableFill.selectFill('organizer_hourly', ". $info['beacon_graph'] .");
+			 	});";
+			} else if((!isset($_GET['page']) && count($info) > 0) || $_GET['action'] == 'analytics' && $_GET['specific'] != 'Speakers') {
+				echo "$(function() {
+			 		tableFill.selectFill('organizer', ". $info['beacon_graph'] .");
+			 	});";
+			} else if($_GET['specific'] == 'Speakers') {
+				echo "$(function() {
+			 		tableFill.selectFill('organizer_speakers', ". $info['beacon_graph'] .");
+			 	});";
+			}?>
+		});
+	</script>
+	<?php include_once("pages/modules/admin/js_loads.php"); ?>
+</body>
+</html>

@@ -1,0 +1,300 @@
+<?php
+	ini_set("display_errors", 'on');
+	include_once("pages/modules/config.php");
+	include_once("pages/modules/admin/mainhead.php");
+	$pageTitle = "BEEP Analytics | Digital Wavefront";
+	include_once('head.php');
+	echo '<body class="framed main-scrollable">';
+	echo '<div class="wrapper">';
+	include_once("pages/modules/admin/header.php");
+	include_once("pages/modules/admin/dashboard.php");
+	echo "</div>";
+	include_once("pages/modules/admin/core.php");
+?>
+	<script>
+	function stopPropagation(e) {
+		  if(!e) var e = window.event;
+		    
+		    if (e.stopPropagation) {
+		        e.stopPropagation();
+		    } else {
+		       e.cancelBubble = true;
+		       e.returnValue = false;
+		    }
+	  }
+	$(document).ready(function () {
+		$('#records tbody').bind("click");
+
+		//alert($(this).attr("data-file-ext"));
+
+		var table;
+		//if ( ! $.fn.DataTable.isDataTable( '#records' ) ) {
+		    table =  $('#records').DataTable({
+				dom: 'Bfrtip',
+				buttons: [
+				          {
+				        	  extend: 'csv',
+				        	  filename: function() {
+				        	      var MCO;
+				        	      if (barGraph.eventType) {
+				        	          MCO = $('#main-container');
+				        	      } else {
+					        	      MCO = $('#main-container-sm');
+				        	      }
+				        	      return MCO[0].getAttribute('data-file-name');
+				              },
+				        	  bBomInc: 'false',
+				        	  exportOptions: {
+				        	  columns: [1, 2]
+				          },
+				          //title: ((barGraph.eventType? barGraph.getFileName() : '')),
+				          //init: function(dt, node, config) {
+					          //if ($(this).attr("data-file-name")) {
+				        	  //$(this).attr("data-file-name").on ('change', function() {
+				        	  //$scope.watch($(this).attr("data-file-name"), function() {
+				        	  //config.title = $(this).attr("data-file-name");
+				        	  //})
+					          //}
+				          //}
+				          },
+				          ],
+				          "paging": true,
+				          "lengthChange": true,
+				          "searching": true,
+				          "ordering": true,
+				          "info": true,
+				          "autoWidth": false
+			});
+		//}
+		    
+		    function format (d) {
+				var extra = (d.length - 1) - populateTable.getLength,
+				table = '<table cellpadding="5" cellspacing="30" border="0" style="position:relative;left:6%;">',
+				rorl = 0;
+				for (var i = 0; i < extra; i++) {
+					rorl = ((i % 2) === 0 || i === 0) ? 'pull-left' : 'pull-right';
+					var paddlr = (rorl === "pull-right" ? 'padding-left: 80px;' : 'padding-right: 80px;');
+					table += (rorl === 'pull-left' ? '<tr>' : '') +'<td style="'+ paddlr +'">'+ d[populateTable.getLength+i+1] +'</td>'+ (rorl ==='pull-right' ? '</tr>' : '');
+				}
+				table += '</table>';
+				return table;
+			}
+			
+			$('#records tbody').off('click').on('click', 'td.details-control', function () {
+				//console.log($(this).contents(), "Radhe");
+				req_served = 0;
+				if (req_served == 0) {
+					var tr = $(this).closest('tr');
+					//console.log(tr, "Krsna");
+					//var row = table.api().row(tr);
+					var row = table.row(tr);
+					if (row.child.isShown()){
+						// This row is already open - close it
+						row.child.hide();
+						tr.removeClass('shown');
+						req_served = 1;
+					}
+					else {
+						// Open this row
+						row.child(format(row.data())).show();
+						tr.addClass('shown');
+						req_served = 1;
+					}
+				}
+		      });
+		
+      	
+	  $(document).on({
+		ajaxStart: function () {
+			$("#testing").addClass("loading");
+		},
+		ajaxStop: function () {
+			$("#testing").removeClass("loading");
+		},
+		ajaxError: function () {
+			$('#testing').removeClass("loading");
+		}
+	  });
+	  $(".delete_chosen").on("click", function (event) {
+	  	var $id = $(this).attr("data-info");
+	  	var $table = $(this).attr("data-info2");
+	  	var $row = $(this)[0].parentElement.parentElement;
+	  	if($("#delete_node").click()) {
+		  	$("#delete_node").on('click', function (event) {
+		  		populateTable.deleteRow($id, $table, $row);
+		  	});
+		} else {
+		  	populateTable.deleteRow($id, $table, $row);
+		}
+	  });
+	  
+	 
+      $('#beacon_type').bind('change', function() {
+		    var elements = $('div.beacon_container').children().hide(); // hide all the elements
+		    var value = $(this).val();
+
+		    if (value) {
+		    if (value.length) { // if somethings' selected
+		        elements.filter('.' + value).show(); // show the ones we want
+		    }
+		    }
+	  }).trigger('change');
+
+	  //alert($('.nav-tabs .active').text());
+
+	  if (document.getElementById("actab")) {
+	  var act_tab = document.getElementById("actab").value;
+	 
+	  //alert(act_tab);
+	  if (act_tab != '') {
+		  $('#addButton').hide();
+	  } else {
+		  $('#addButton').show();
+	  }
+	  }
+		
+      $(".view_chosen").on("click", function (event) {
+          event.preventDefault();    
+      });
+      
+      //$("div.panel-body table").delegate('tr', 'click', function() {
+      //$("#records-event tbody").delegate('tr', 'click', function() {
+      $("#records-event tbody tr").on('click', function() {
+          //$("div.panel-body table tr").removeClass("highlight");
+          $("#records-event tbody tr").removeClass("highlight");
+    	  var selected = $(this).hasClass("highlight");
+    	  
+    	  if (!selected) {
+        	  $(this).addClass("highlight");
+    	  }
+          //if ($(this).attr('data-event') !== undefined) {
+              //alert($_GET['page']);
+              //alert($_GET['event']);
+              $("#home_row1").empty();
+              $("#home_row2").empty();
+              //alert($(this).attr('data-event'));
+             // populateTable.getActivity($(this).attr('data-event'));
+              $.ajax({
+      			type: 'POST',
+      			url: "/pages/modules/admin/home_row1.php",
+      			data: {id : $(this).attr('data-event')},
+      			timeout: 30000,
+      			success: function (data) {
+      				//console.log(data.text);
+      				//alert(data.text);
+      				document.getElementById("home_row1").innerHTML += data; 
+      			},
+      			error: function(request, status, err) {
+      				if(status == 'timeout') {
+      					alert('Ajax took too long');
+      				} else {
+      					console.log(err.getMessage());
+      				}
+      			}
+      		});
+            $.ajax({
+        	  type: 'POST',
+        	  url: "/pages/modules/admin/home_row2.php",
+        	  data: {id : $(this).attr('data-event')},
+        	  timeout: 30000,
+        	  success: function (data) {
+        	  //console.log(data.text);
+        	  //alert(data.text);
+        	  document.getElementById("home_row2").innerHTML += data; 
+        	  },
+        	  error: function(request, status, error) {
+        	      if(status == 'timeout') {
+        	          alert('Ajax took too long');
+        	      } else {
+        	    	  //var err = eval('(' + request.responseText + ')');
+        	    	  alert(request.responseText);
+        	          //console.log(err.getMessage());
+        	      }
+        	  }
+        	});
+
+        	
+                	
+          //}
+      });
+	   $(function() {
+	    $("#sortable").sortable({
+	        stop: function() {
+	           var order = $("#sortable").sortable("serialize", {key:'position[]'});
+	           $inputs = $(".hidden_position");
+	           for (var i = 0; i < $inputs.length; i++) {
+	           	$inputs[i].setAttribute("name", order.split('position[]=')[i+1]);
+	           }
+	        }
+   		 });
+	    if($('.logo_ex')[0] !== undefined && $(".logo_ex")[0].value > 0) $('.file-caption-name')[0].innerHTML = ($(".logo_ex")[0].value);
+	   	});
+	 	$('.table_pick > tbody > tr').on('click', function (event) {
+	 		if ($(this).attr('data-href') !== undefined)
+	    		document.location = '' + $(this).attr('data-href');
+	 	});
+	 	$('.date_pick').datetimepicker({minDate: new Date()});
+		$(".logo_ex").fileinput({'showUpload':false, 'previewFileType':'any', 'showPreview' : false});
+		$(".edit_direct").on("click", function (event) {
+			document.location = '/Organizer' + $(this).attr('data-href');
+		});
+		$(function() {
+		    $(document).tooltip();
+				$(".download_btn").on("click", function (event) {
+					//alert($(this).val());
+					downloadable.graph(barGraph.eventType ? barGraph.eventType : smallBarGraph.eventType, $(this).val());
+				});
+		});
+		
+		<?php
+		    $new_evt = 0;
+		    $edit_event = 0;
+		    
+		   
+		    if (isset($_GET['action']) && ($_GET['action'] == 'new_event' || $_GET['action'] == 'new_speaker'
+		            || $_GET['action'] == 'new_session' || $_GET['action'] == 'new_exhibitor'
+		            || $_GET['action'] == 'new_sponsor' || $_GET['action'] == 'new_beacon'
+		            || $_GET['action'] == 'new_notification' || $_GET['action'] == 'new_content')) {
+		        $new_evt = 1;	
+		    }
+		    $get_action = $_GET['action'];
+		    //echo "alert('$get_action');"; 
+		    $get_specific = $_GET['specific'];
+		    //echo "alert('$get_specific');";
+		    
+		    if ($get_action) {
+		    	//edit event and $get_action contains event code
+		    	$edit_event = 1;
+		    }
+		    
+			if (isset($_GET['specific']) && $parseAPI->isBeacon($_GET['specific'])) {
+				//echo $_GET['specific'];
+				echo "$(function() {
+			 		tableFill.selectFill('organizer_hourly', ". $info['beacon_graph'] .");
+			 	});";
+			} else if((!isset($_GET['page']) && count($info) > 0) || $_GET['action'] == 'analytics' && $_GET['specific'] != 'Speakers' && $_GET['specific'] != 'Notifications' && $_GET['specific'] != 'Sesssions') {
+				//console.log($_GET['page']);
+				//console.log($_SESSION['eventId']);
+				echo "$(function() {
+			 		tableFill.selectFill('organizer', ". $info['beacon_graph'] .");
+			 	});";
+			} else if ($_GET['specific'] == 'Sessions') {
+				echo "$(function() {
+				    tableFill.selectFill('organizer_session', ". $info['beacon_graph'] .");
+				});";
+			} 
+			else if($_GET['specific'] == 'Speakers') {
+				//echo $_GET['specific'];
+				echo "$(function() {
+			 		tableFill.selectFill('organizer_speakers', ". $info['beacon_graph'] .");
+			 	});";
+			}?>
+			
+		});
+		
+		  // with plugin options
+		  $("#event_logo").fileinput({'showUpload':false});
+	</script>
+	<?php include_once("pages/modules/admin/js_loads.php"); ?>
+</body>
+</html>

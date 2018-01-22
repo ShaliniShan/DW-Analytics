@@ -1,0 +1,33 @@
+<?php
+	/* Displays correct page in Organizer.php */
+	if(isset($_GET['page'])) {
+		if($_GET['page'] == "Admin" && isset($_GET['event']) && !isset($_GET['specific'])) {
+			$adminAPI->setEventId($_GET['event']);
+			if(($adminAPI->hasEventInfo($_GET['event'], 'Speaker') || $adminAPI->hasEventInfo($_GET['event'], 'Session') || $adminAPI->hasEventInfo($_GET['event'], 'Beacon') || $adminAPI->hasEventInfo($_GET['event'], 'Notification') || $adminAPI->hasEventInfo($_GET['event'], 'Survey') || $adminAPI->hasEventInfo($_GET['event'], 'Exhibitor')) && !$_GET['action']) {
+				include_once 'pages/modules/admin/event_display.php';
+			}
+			else if($_GET['action'] == 'edit') {
+				include_once 'pages/modules/admin/edit_details.php';
+			}
+			else if($_GET['action'] == 'add')
+				include_once 'pages/modules/admin/edit_event.php';
+			else
+				include_once 'pages/modules/admin/edit_event.php';
+		} else if($_GET['page'] == 'Admin' && isset($_GET['action']) && $_GET['action'] == 'new_event') {
+			include_once 'pages/modules/admin/add_event.php';
+		} else if($_GET['page'] == 'Admin' && isset($_GET['action']) && $_GET['action'] == 'analytics') {
+			include_once 'pages/modules/admin/analytics_graph.php';
+		} else if($_GET['page'] == 'Admin' && isset($_GET['action']) && $_GET['action'] == 'attendee') {
+			include_once 'pages/attendee.php';
+		} else if($_GET['page'] == 'attendee' && isset($_GET['event']) && !isset($_GET['action'])) {
+			include_once 'pages/specific/attendee_list/attendee_event.php';
+		} else if($_GET['page'] == 'attendee' && isset($_GET['event']) && isset($_GET['action'])) {
+			include_once 'pages/specific/attendee_list/attendee_content.php';
+		} else if($_GET['page'] == 'attendees') {
+			include_once 'pages/specific/attendees_list.php';
+		} else if($_GET['action'] == 'edit') {
+			include_once 'pages/modules/admin/edit_details.php';
+		}
+	} else {
+		include_once 'pages/modules/admin/home.php';
+	}	

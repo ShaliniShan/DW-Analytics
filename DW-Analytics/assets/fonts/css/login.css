@@ -1,0 +1,62 @@
+/* GENERAL */
+body.login_background {
+  height: 100%;
+   background:
+      linear-gradient(
+        rgba(14, 14, 14, 0.99),
+        rgba(35, 34, 38, 0.95)
+      ),
+      url('../img/slide.jpg');
+    background-size: cover;
+}
+
+.darktext {
+  color: rgba(255,255,255,0.7);
+}
+
+h1 {
+  font-size: 1.4em;
+  color: #B5B6B6;
+}
+
+/* LOGIN */
+.btn-custom {
+  background: #00BCD4;
+  border: 1px solid #00BCD4;
+  color: #fff;
+}
+.btn-custom:hover {
+  background: #008395;
+  border: 1px solid #008395;
+}
+.page-header {
+	margin: 10px 0 20px 0;
+	font-size: 22px;
+}
+.container {
+  padding-right: 15px;
+  padding-left: 15px;
+  margin-right: auto;
+  margin-left: auto;
+}
+a {
+  cursor: pointer;
+}
+@media (min-width: 768px) {
+  .container {
+    width: 350px;
+    margin-top: 5%;
+  }
+}
+@media (min-width: 992px) {
+  .container {
+    width: 350px;
+    margin-top: 5%;
+  }
+}
+@media (min-width: 1200px) {
+  .container {
+    width: 350px;
+    margin-top: 5%;
+  }
+}

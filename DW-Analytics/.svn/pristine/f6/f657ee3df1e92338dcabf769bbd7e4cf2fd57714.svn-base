@@ -1,0 +1,159 @@
+var Error_checks = (function () {
+	"use strict";
+	function chooseCorrectErrorContent($class) {
+		switch ($class) {
+			case 'new_event':
+				generateAddEventCheck();
+				break;
+			default:
+				console.log("Cannot Choose Correct Class");
+				break;
+		}
+	}
+
+	function checkInjection(checkValue) {
+		var isPossibleOfInjection = false;
+		var regex = /\W\B/g;
+		var check = regex.exec(checkValue);
+		isPossibleOfInjection = (!check ? false : true);
+		return isPossibleOfInjection;
+	}
+
+	/* Generates Error Message for add event */
+	function generateAddEventCheck() {
+		$("#submit_event").submit(function (event) {
+			var $title = $("#event_title").val().trim(),
+				$description = $("#event_description").val().trim(),
+				$location = $("#event_location").val().trim(),
+				$address = $("#event_address").val().trim(),
+				$city = $("#event_city").val().trim(),
+				$state = $("#event_state").val().trim(),
+				$zip = $("#event_zip").val().trim(),
+				$country = $("#event_country").val().trim(),
+				$start = $("#event_start").val().trim(),
+				$end = $("#event_end").val().trim(),
+				$logo = $("#event_logo").val().trim(),
+				$hash = $("#event_hashtags").val().trim(),
+				$error = '<div class="alert alert-danger alert-dismissable">',
+				$formError = "";
+			if($title === '') {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " Title cannot be empty<br/>";
+			} else if(checkInjection($title)) {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " Invalid Characters in title<br/>";
+			}
+			if($description === '') {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " Description cannot be empty<br/>";
+			} else if(checkInjection($description)) {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " Invalid Characters in Description<br/>";
+			}
+			if($location === '') {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " Location cannot be empty<br/>";
+			} else if(checkInjection($location)) {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " Invalid Characters in Location<br/>";
+			}
+			if($address === '') {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " Address cannot be empty<br/>";
+			} else if(checkInjection($address)) {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " Invalid Characters in Address<br/>";
+			}
+			if($city === '') {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " City cannot be empty<br/>";
+			} else if(checkInjection($city)) {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " Invalid Characters in City<br/>";
+			}
+			if($description === '') {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " Description cannot be empty<br/>";
+			} else if(checkInjection($description)) {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " Invalid Characters in Description<br/>";
+			}
+			if($state === '') {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " State cannot be empty<br/>";
+			} else if(checkInjection($state)) {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " Invalid Characters in State<br/>";
+			}
+			if($zip === '') {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " Zip Code cannot be empty<br/>";
+			} else if(checkInjection($zip)) {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " Invalid Characters in Zip Code<br/>";
+			}
+			if($country === '') {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " Country cannot be empty<br/>";
+			} else if(checkInjection($country)) {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " Invalid Characters in Country<br/>";
+			}
+			if($start === '') {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " Start Time cannot be empty<br/>";
+			} else if(checkInjection($start)) {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " Invalid Characters in Start Time<br/>";
+			}
+			if($end === '') {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " End Time cannot be empty<br/>";
+			} else if(checkInjection($end)) {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " Invalid Characters in End Time<br/>";
+			}
+			if($hash === '') {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " Hashtags cannot be empty<br/>";
+			} else if(checkInjection($hash)) {
+				$formError += "<span class='glyphicon glyphicon-exclamation-sign' aria-hidden='true'></span>" +
+                           "<span class='sr-only'>Error:</span>" +
+                           " Invalid Characters in Hashtags<br/>";
+			}
+			if($formError !== '') {
+			   	event.preventDefault();
+	            $error += ("<button type='button' class='close' data-dismiss='alert'>x</button>" + $formError);
+	            $error += '</div>';
+	            $("#error_container").html($error);
+			}
+		});
+	}
+
+	return {
+		automaticCheck : chooseCorrectErrorContent
+	};
+})(); 

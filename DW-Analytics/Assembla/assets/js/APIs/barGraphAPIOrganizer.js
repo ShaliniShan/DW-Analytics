@@ -1,0 +1,383 @@
+var barGraph = (function () {
+	"use strict";
+	var file_extension;
+	var req_served;
+	/**
+	 * @var data 		Array of objects passed with key of 'key' and value as 'value'
+	 * @var axisLabels  Object that specifies the two axis label names -- Might be deleted
+	 * @var w 			Width of entire svg element
+	 * @var h 			Height of entire svg element
+	 * @var margin      Margins specified for the graph inside the svg
+	 */
+	var data = [],
+		axisLabels = {},
+		w = 100,
+		h = 470,
+		margin = { // customs margins for bargraph
+			top: 70,
+			bottom: 120,
+			left: 70,
+			right: 150
+		},
+		groupSpacing = 10,
+		axisFormat = d3.format('.0f'),
+		tickNumber = d3.max(data, function (d) {
+			return d.value;
+		}) > 5 ? 5 : 3,
+		width = calculateRealWidth() - margin.left - margin.right, // width for svg with custom margins
+		height = h - margin.top - margin.bottom, // height for svg with custom margins
+			/* Flipping the axis */
+		x = d3.scale.ordinal() // x axis set up
+			.domain(data.map(function(entry) {
+				return entry.key;
+			}))
+			.rangeBands([0, width - groupSpacing]),
+		y = d3.scale.linear() // y axis set up
+				.domain([0, d3.max(data, function (d) {
+				return d.value;
+			})])
+			.range([height, 0]),
+		//Linear sets colors from one range to the end
+		linearColorScale = d3.scale.linear()
+							.domain([0, data.length])
+							.range(["#ececec", "#F68026"]),
+			//ordinal branches selection to categories of colors
+		/* D3 has default color scales 20 = 20 colors */
+		ordinalColorScale = d3.scale.category20(),
+		//setting up x axis label
+		xAxis = d3.svg.axis()
+				.scale(x)
+				.orient("bottom"),
+		// setting up y axis label
+		yAxis = d3.svg.axis()
+				.scale(y)
+				.tickFormat(axisFormat)
+				.ticks(tickNumber)
+				.orient("left"),
+		//setting up internal grid lines
+		yGridLines = d3.svg.axis()
+					.scale(y)
+					.tickSize(-width + groupSpacing, 0, 0)
+					.tickFormat('')
+					.ticks(tickNumber)
+					.orient('left');
+	// d3 objects
+	var MC = $('#main-container');
+	var CH = $("#content_header")[0] ? $("#content_header")[0].innerHTML : '';
+	var svg = d3.select("#main-container .row").append("svg") //selects #main-container .row and adds svg to it.
+				.attr("id", "chart") // gives svg id of chart
+				.attr('width', w +"%") // makes svg width equal to w var
+				.style("overflow", "scroll")
+				.attr("clear", "both")
+				.attr("height", h); // makes svg height equal to h var
+	var chart = svg.append("g") // appends group to svg
+				.classed('display', true) // gives ground class of display; true is needed to append the class
+				.attr("transform", "translate(" + margin.left + "," + margin.top + ")"); // group is adjusted inside svg element
+	var table_header = $("#ajax_table .panel-heading .panel-title")[0];
+	var prev_header = table_header ? table_header.innerHTML : '';
+	var isDefault = (CH === 'Default Graph Example');
+	var file_xten = $("#ajax_table .panel-body .panel-title")[0];
+	var file_xten_content = file_xten ? file_xten.innerHTML : '';
+
+	
+	/**
+	 * @method Stores passed variables to the module for other functions to use
+	 */
+	function loadData(arr, names) {
+		data = arr;
+		axisLabels = names;
+	}
+	/**
+	  * @return dynamic width of the bootstrap container
+	  */
+	function calculateRealWidth() {
+		return ($("#main-container.container")[0]) ? ($("#main-container.container")[0].clientWidth) : 0;
+		//return ($(".container")[0].offsetWidth - 20);
+	}
+	/**
+	 * @method
+	 */
+	function resize() {
+
+	}
+	/**
+	 * @method
+	 */
+	function init() {
+		plot.call(chart, { // We want the this keyword is bound to the chart object
+			data : data,
+			axis : {
+				x : xAxis,
+				y : yAxis
+			},
+			gridlines : yGridLines,
+			init : true
+		});
+	}
+
+	function axisOptions(options, params) {
+		if(options.z == 'img') {
+			// Draw the x axis
+			this.append("g") //adds group to chart
+				.classed("x axis", true) // adds class x and class axis to group
+				.attr("transform", "translate(" + 0 + "," + height + ")") //
+				.call(params.axis.x)
+					.selectAll(".tick").each(function(d,i) {
+				        d3.select(this)
+				          .append('image')
+				          .attr('xlink:href', data[i].img)
+				          .attr('x', -25)
+				          .attr('y', 15)
+				          .attr('width',50)
+				          .attr('height',50);
+				    });
+			this.selectAll('.tick text').attr('display', 'none');
+		} else {
+			// Draw the x axis
+			this.append("g") //adds group to chart
+				.classed("x axis", true) // adds class x and class axis to group
+				.attr("transform", "translate(" + 0 + "," + height + ")") //
+				.call(params.axis.x)
+					.selectAll(options.z)
+						.classed("x-axis-label", true)
+						//.style('text-anchor', 'end')
+						.attr("dx", -9)
+						.attr("dy", 15);
+						//.attr('transform', 'translate(0,0) rotate(-45)');
+		}
+		this.selectAll('.tick text').attr('display', 'none');
+	}
+
+	// Need to draw axis separate from the plot function to avoid it drawing over each other
+	function drawAxis(params) {
+		if (params.init) {
+	//-------------- Draw the gridlines and axes ------------------
+			// Draw the gridlines
+			this.append('g') // this refers to chart var; adds group
+				.call(params.gridlines) // resets yGridlines var
+				.classed('gridline', true) // gives group class of gridline
+				.attr("transform", "translate(0,0)"); //transform is set to 0,0
+			// Add correct attributes of x axis
+			axisOptions.call(this, axisLabels, params);
+			// Draw the y axis
+			this.append("g")
+				.classed("y axis", true)
+				.attr("transform", "translate(" + 0 + "," + 0 + ")")
+				.call(params.axis.y);
+			// Draw y label
+			this.select('.y.axis')
+				.append("text")
+				.attr("x", 0)
+				.attr("y", 0)
+				.style("text-anchor", "middle")
+				.attr("transform", "translate(-50," + height/2 + ") rotate(-90)");
+		} else if (!params.init) {
+		//-----------------Update info--------------------
+			this.selectAll("g.x.axis")
+				.transition()
+				.duration(500)
+				.ease("bounce")
+				.delay(500)
+				.call(params.axis.x);
+			this.selectAll(".x-axis-label")
+				.style('text-anchor', 'end')
+				.attr("dx", -9)
+				.attr("dy", 8)
+				.attr('transform', 'translate(0,0) rotate(-45)');
+			this.selectAll("g.y.axis")
+				.transition()
+				.duration(500)
+				.ease("bounce")
+				.delay(500)
+				.call(params.axis.y);
+		}
+	}
+	// Function to display bar graph
+	function plot(params) {
+		var event_passed = false,
+			current_passed = '';
+		// re-establish domains of both x and y on each call
+		x.domain(data.map(function(entry) {
+				return entry.key;
+			}));
+		y.domain([0, d3.max(data, function (d) {
+				return d.value;
+			})]);
+		//Draw the axes and axes labels
+		drawAxis.call(this, params);
+		//enter() -- Data is bound to elements
+		this.selectAll(".bar")
+			.data(params.data)
+			.enter()
+				.append("rect")
+				.classed("bar", true)
+				.attr('data-name', function (d, i) {
+					var regex = /(\()/;
+					var check = regex.exec(d.key);
+					var returned_name = check ? d.key.substring(0, check.index) : d.key;
+					return returned_name;
+				})
+				.attr("height",20)
+				.on("mouseover", function (d, i) {
+					d3.select(this).style("fill", "#00BCD4");
+					event_passed = false;
+				})
+				.on("mouseout", function (d, i) {
+					if(!event_passed && i !== current_passed) {
+						d3.select(this).style("fill", linearColorScale(i));
+					}
+				})
+				.on("click", function (d, i) {
+					var main_container_url = MC[0].getAttribute('data-href');
+					var clicked_url = $(this).attr("data-name");
+					var special = false;
+					if(!isDefault) {
+						if(d.company !== '' && d.company !== undefined && MC[0].getAttribute('data-table') && MC[0].getAttribute('data-table') != 'Beacons') {
+							appendAdditional.call(d, table_header);
+							populateTable.createTable(MC[0].getAttribute('data-event'), d.company, MC[0].getAttribute("data-table"));
+							special = true;
+						}
+						if(!special) {
+							if(main_container_url)
+								document.location = main_container_url + clicked_url;
+							else if(MC[0].getAttribute('data-table') == 'Beacons') {
+								appendAdditional.call(this, table_header, file_xten);
+								populateTable.createTable(MC[0].getAttribute('data-graph'), d.key, 'Beacons');
+							}
+							else {
+								appendAdditional.call(d, table_header, file_xten);
+								populateTable.createTable(MC[0].getAttribute('data-event'), d.key, MC[0].getAttribute("data-table"));
+							}
+							d3.selectAll(".bar").style("fill", function (d,i) {
+								return linearColorScale(i);
+							});
+							d3.select(this).style("fill", "#00BCD4");
+							event_passed = true;
+							current_passed = i;
+						}
+					}
+					
+					   
+					
+					
+					
+				})
+				.append("svg:title")
+					.text(function (d) {
+						return d.key + " " + (d.company ? d.company : '');
+					});
+		this.selectAll(".bar-label")
+			.data(params.data)
+			.enter()
+				.append('text')
+				.classed("bar-label", true);
+		//update -- elements that are bound are updated with changes in data
+		this.selectAll(".bar")
+			.transition()
+			.duration(500)
+			.ease("bounce")
+			.delay(500)
+			.attr("x", function(d, i) {
+				return x(d.key);
+			})
+			.attr("y", function (d, i) {
+				return y(d.value);
+			})
+			.attr("width", function (d, i) {
+				return x.rangeBand() - groupSpacing;
+			})
+			.attr("height", function(d, i) {
+				return height - y(d.value);
+			})
+			.style("fill", function (d,i) {
+				return linearColorScale(i);
+			});
+		this.selectAll(".bar-label")
+			.transition()
+			.duration(500)
+			.ease("bounce")
+			.delay(500)
+			.attr("x", function (d, i) {
+				return x(d.key) + (x.rangeBand()/2 - groupSpacing/2);
+			})
+			.attr("dx", 0)
+			.attr("y", function (d, i) {
+				return y(d.value);
+			})
+			.attr("dy", -6)
+			.text(function (d) {
+				return d.value;
+			});
+		//exit() -- any unbound elements are removed
+		this.selectAll(".bar")
+			.data(params.data)
+			.exit()
+			.remove();
+		this.selectAll(".bar-label")
+			.data(params.data)
+			.exit()
+			.remove();
+	}
+	/* Appends header to ajax_table */
+	function appendAdditional(_theader, _filexten) {
+		_theader.innerHTML = prev_header;
+		_theader.innerHTML += ' ' + this.key + ' (' + this.value + ')';
+		var event_type;
+		if (barGraph.eventType == "Event-Sessions") {
+			event_type = "Session-Attendance";
+		}else if (barGraph.eventType == "Event-Speakers") {
+			event_type = "Speaker-Ratings";
+		}
+		// _filexten.innerHTML = file_xten_content;
+		var file_name_actual = barGraph.fileName + '-' + event_type + '-' + this.key + '-details';
+		//_filexten.innerHTML += file_name_actual;
+		
+		if (MC[0].getAttribute('data-file-name')) {
+		    MC[0].setAttribute('data-file-name', file_name_actual);	
+		}
+		
+		//window.file_extension = this.key;
+	}
+	/**
+	 * Returns the modified Data array for use outside the module
+	 * @return {Array} the modified Data array
+	 */
+	function getData(type) {
+		switch (type) {
+			case 'Event-Speakers':
+				return data.map(function(item) { return {'Speaker': item.key, 'Rating':item.value};});
+				break;
+			case 'Event-All':
+				return data.map(function(item) { return {'Beacon': item.key, 'Interactions':item.value};});
+				break;
+			case 'Event-Sessions':
+				return data.map(function(item) { return {'Session': item.key, 'Attendance':item.value};});
+				break;
+			case 'Event-Exhibitor-Rating':
+				return data.map(function(item) { return {'Exhibitor': item.key, 'Rating':item.value};});
+				break;
+			default:
+				return data;
+		}
+	}
+	
+	function getFileName() {
+		var event_type;
+		if (this.eventType == "Event-Sessions") {
+			event_type = "Session-Attendance";
+		}else if  (this.eventType == "Event-Speakers") {
+			event_type = "Speaker-Ratings";
+		}
+		return (this.fileName + '-' + event_type + '-' + file_extension + '-details');
+	}
+
+	return {
+		plotBarGraph : init,
+		loadData : loadData,
+		getData : getData,
+		fileName : MC[0] ? MC[0].getAttribute("data-file") : '',
+		eventType : MC[0] ? MC[0].getAttribute("data-event-type") : '',
+		specific_file : file_extension ? file_extension : "All-Events",
+	    getFileName: getFileName,
+	};
+})();

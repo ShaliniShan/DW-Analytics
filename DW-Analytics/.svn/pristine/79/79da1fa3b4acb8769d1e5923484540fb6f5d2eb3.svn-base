@@ -1,0 +1,75 @@
+<?php 
+	$type = $_GET['action'];
+	if(isset($_POST['submit_event'])) {
+		/* This is will the id of the user */
+		$adminAPI->submitNewEvent($_SESSION['userID'], $_POST['event_title'], $_POST['event_description'], $_POST['event_location'], $_POST['event_address'], $_POST['event_city'], $_POST['event_state'], $_POST['event_zip'], $_POST['event_country'], $_POST['event_start'], $_POST['event_end'], $_FILES['event_logo'], $_POST['event_hashtags']);
+	}
+?>
+<div class="container-fluid half-padding">
+	<div class="pages pages_dashboard">
+		<div class="row">
+			<div class="col-md-9">
+				<div class="panel panel-danger">
+					<div class="panel-heading">
+						<h3 class="panel-title"><i class="fa fa-file"></i>  Add Event </h3>
+					</div>
+					<div class="panel-body">
+						<form id='add_event' class="col-md-12" action="" method='POST' accept-charset='UTF-8' enctype="multipart/form-data" autocomplete="on">
+				          <div class="form-group col-md-12">
+				          	  <label for="event_title">Title</label>
+				              <input type='text' name='event_title' class="form-control input-lg" id='event_title' value='' placeholder="Title">
+				          </div>
+				          <div class="form-group col-md-12">
+				          	  <label for="event_description">Description/Summary</label>
+				              <textarea name='event_description' class="form-control input-lg" id='event_description' value='' placeholder="Description"></textarea>
+				          </div>
+				          <div class="form-group col-md-6">
+				          	  <label for="event_location">Location/Venue Name</label>
+				              <input type='text' name='event_location' class="form-control input-lg" id='event_location' value='' placeholder="Location">
+				          </div>
+				          <div class="form-group col-md-6">
+				          	  <label for="event_address">Address</label>
+				              <input type='text' name='event_address' class="form-control input-lg" id='event_address' value='' placeholder="Address">
+				          </div>
+				          <div class="form-group col-md-8">
+				          	  <label for="event_city">City</label>
+				              <input type='text' name='event_city' class="form-control input-lg" id='event_city' value='' placeholder="City">
+				          </div>
+				          <div class="form-group col-md-4">
+				          	  <label for="event_state">State</label>
+				              <input type='text' maxlength="2" name='event_state' class="form-control input-lg" id='event_state' value='' placeholder="State">
+				          </div>
+				          <div class="form-group col-md-4">
+				          	  <label for="event_zip">Zip Code</label>
+				              <input type='text' maxlength="5" name='event_zip' class="form-control input-lg" id='event_zip' value='' placeholder="01730">
+				          </div>
+				          <div class="form-group col-md-8">
+				          	  <label for="event_country">Country</label>
+				              <input type='text' name='event_country' class="form-control input-lg" id='event_country' value='' placeholder="United States">
+				          </div>
+				          <div class="form-group col-md-3">
+				          	  <label for="event_start">Start Time</label>
+				              <input type='text' name='event_start' class="date_pick form-control input-lg" id='event_start' placeholder="Start Time">
+				          </div>
+				          <div class="form-group col-md-3">
+				          	  <label for="event_end">End Time</label>
+				              <input type='text' name='event_end' class="date_pick form-control input-lg" id='event_end' placeholder="End Time">
+				          </div>
+				          <div class="form-group col-md-6">
+				          	  <label for="event_logo">Logo</label>
+				              <input type='file' name='event_logo' class="file logo_ex form-control input-lg" id='event_logo'>
+				          </div>
+				          <div class="form-group col-md-12">
+				          	  <label for="event_hashtags">Twitter Hashtags</label>
+				              <input type='text' name='event_hashtags' class="form-control input-lg" id='event_hashtags' placeholder="#hashtags">
+				          </div>
+				          <div class="form-group col-md-12">
+				              <button name="submit_event" type='submit' onClick="Error_checks.automaticCheck('<?=$type?>');" class="btn btn-custom btn-lg btn-block">Add Event</button>
+				          </div>
+					    </form>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

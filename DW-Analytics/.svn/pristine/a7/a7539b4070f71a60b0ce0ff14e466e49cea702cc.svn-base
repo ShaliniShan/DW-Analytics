@@ -1,0 +1,67 @@
+<nav class="navbar navbar-static-top header-navbar">
+  <div class="header-navbar-mobile">
+    <div class="header-navbar-mobile__menu">
+      <button type="button" class="btn"><i class="fa fa-bars"></i></button>
+    </div>
+    <div class="header-navbar-mobile__title"><span>Dashboard</span></div>
+    <div class="header-navbar-mobile__settings">
+      <a href="/login/1" class="btn"><i class="fa fa-power-off"></i></a>
+    </div>
+  </div>
+  <div class="navbar-header">
+    <a href="/Organizer/" class="navbar-brand">
+      <div class="logo text-nowrap">
+        <div class="logo__img">
+          <?= $formatted_logo_top; ?>
+        </div>
+        <span class="logo__text">BEEP Analytics</span>
+      </div>
+    </a>
+  </div>
+  <div class="topnavbar">
+   <!--  <ul class="nav navbar-nav navbar-left">
+     <li class="active"><a href="/Organizer/"><span>Dashboard</span></a></li>
+     <li><a data-toggle="modal" data-target="#invite"><span>Invite</span></a></li>
+   </ul> -->
+    <ul class="userbar nav navbar-nav">
+      <li class="logout_back">
+         <a href="/Login/1" class="btn userbar__settings"><i class="fa fa-power-off"></i></a>
+      </li>
+    </ul>
+  </div>
+</nav>
+<!-- Invite Modal -->
+<div id="invite" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+    <!-- Modal content-->
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">Invite People to your Event</h4>
+      </div>
+      <div class="modal-body">
+        <form id='invite_req' class="col-md-12" method='post' accept-charset='UTF-8'>
+          <p class="lead">Please Choose the type to Invite</p>
+          <div class="form-group">
+              <label for="invite_type">Type to Email</label>
+             <select data-live-search='true' style="background-color: #5e6870" name='invite_type' class="form-control input-lg selectpicker" id='invite_type' value='' title="Choose a Type">
+               <option value="Exhibitor">Exhibitor</option>
+               <option value="Sponser">Sponser</option>
+               <option value="Organizer">Organizer</option>
+             </select>
+          </div>
+          <div class="form-group">
+            <label for="email_to">Email To: </label>
+            <input name="email_to" type="email" class="form-control has-feedback">
+          </div>
+          <div class="form-group">
+              <button onClick="" name='email_submit' type='submit' class="btn btn-custom btn-lg btn-block">Send Invite</button>
+          </div>
+      </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>

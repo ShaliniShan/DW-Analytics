@@ -1,0 +1,56 @@
+<?php
+	if ($_GET['specific'] == 'Notifications' || $_GET['specific'] == 'ReceivedNotification' || $_GET['specific'] == 'SavedNotification') include_once 'analytics_chart.php';
+	else {
+		$info = $parseAPI->buildCorrectGraph($_GET['specific']);
+		$default = false;
+		if($info[0] == null || empty($info[0]) || $info[0]['beacon_graph'] == '[]') {
+			$info = $parseAPI->buildDefaultGraph();
+			$default = true;
+		} else if($info[1] == null) {
+			$info = $info[0];
+		}
+?>
+<div class="container-fluid half-padding">
+	<div class="pages pages_dashboard">
+		<div class="row">
+			<div class="col-md-12">
+				<div class="panel panel-danger">
+					<div class="panel-heading">
+						<h3 class="panel-title"><em><span id="content_header"><?= $info['title']; ?></span></em> <?= $info['extra']; ?></h3>
+					</div>
+					<div class="panel-body <?php if($default) echo 'default_graph' ?>">
+						<div data-event-type="<?= $info['event_type']; ?>" data-file="<?= $info['event_code']; ?>" data-event="<?=$_GET['event'];?>" data-table="<?= $_GET['specific']; ?>"<?php if($_GET['specific'] == 'Beacons' || $parseAPI->isBeacon($_GET['specific']) || $_GET['specific'] == 'Exhibitors-Interactions') { ?> data-graph="<?= $_GET['event']; ?>" <?php } if($parseAPI->isBeacon($_GET['specific'])) { ?> id='main-container-sm' <?php } else { ?> id="main-container" <?php } if($_GET['specific'] == 'Beacons') { ?> data-href="/Organizer/Admin/analytics/<?= $_GET['event']?>/" <?php } ?> class="container">
+							<div class="row"><div class="col-md-12"></div></div>
+						</div>
+						<button type="button" class="download_btn btn btn-lg btn-custom">Download CSV</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="testing"></div>
+		<div id="ajax_table" style="margin-bottom: 50px;">
+			<div class="row">
+				<div class="col-md-12">
+					<div class="panel panel-danger">
+						<div class="panel-heading">
+							<h3 class="panel-title"><strong><em><?php if ($_GET['specific'] == 'Speakers') echo "Speaker"; ?> <?php if($_GET['specific'] == 'Exhibitors') echo 'Ratings'; ?></em></strong> <?= $info['extra']; ?></h3>
+						</div>
+						<div class="panel-body">
+						   <table id="records" cellspacing="0" width="100%" class="table table-bordered table-striped table-hover dt-responsive nowrap">
+					        <thead>
+					          <tr>
+					            <?= $parseAPI->getCorrectTableHead($_GET['specific']); ?>
+					          </tr>
+					        </thead>
+					        <tbody>
+
+					        </tbody>
+					       </table>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<?php } ?>

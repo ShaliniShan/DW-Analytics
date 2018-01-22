@@ -1,0 +1,1379 @@
+<?php 
+	/** -- QUICK SEARCH --
+		1. Namespaces
+		2. Local Variables
+		3. Connections
+		4. Getter
+		5. Setter
+		6. Builder
+		7. Event_build
+		8. Submission
+		9. Update
+		10. Delete
+	**/
+	/**
+	  * @uses parseInit to connect to Parse Database
+	  */
+	require_once ($_SERVER['DOCUMENT_ROOT']."/pages/modules/parseInit.php");
+	/**
+	  * @uses vendor/parse/php-sdk/src/Parse/ For Namespaces
+	  */
+	use Parse\ParseObject;
+	use Parse\ParseQuery;
+	use Parse\ParseUser;
+	use Parse\ParseFile;
+	use Parse\ParseException;
+
+	class AdminParseAPI {
+		/**
+		  * @var String eventId 	 is Set with @method setEventId
+		  * @var String event  		 is Set with @method setEventId
+		  * @var Array tables 		 are pre-set to Parse Table names
+		  */
+		public $eventId;
+		public $event;
+		private $tables = array(
+			'Beacon' 				=> 'ba_tb_000',
+			'BeaconInteraction'		=> 'ba_tb_001',
+			'Company' 				=> 'ba_tb_002',
+			'CompanyRating' 		=> 'ba_tb_003',
+			'Event' 				=> 'ba_tb_004',
+			'EventCompany' 			=> 'ba_tb_005',
+			'Notification' 			=> 'ba_tb_006',
+			'ReceivedNotification' 	=> 'ba_tb_007',
+			'SavedNotification'		=> 'ba_tb_008',
+			'Session' 				=> 'ba_tb_009',
+			'SessionRSVP' 			=> 'ba_tb_010',
+			'Speaker' 				=> 'ba_tb_011',
+			'Survey' 				=> 'ba_tb_012',
+			'SurveyQuestions' 		=> 'ba_tb_013',
+			'SurveyResponse'   	    => 'ba_tb_014',
+			'Exhibitor'				=> 'ba_tb_015'
+		);
+		private function parseQuery($className) {
+			return new ParseQuery($className); 
+		}
+		/* Getter Functions */
+		private function getSelectedTable($table) {
+			return array_search($table, $this->tables);
+		}
+		private function getUserInfo($organizer) {
+			$user = ParseUser::query();
+			$user->equalTo("objectId", $organizer);
+			$user->limit(1);
+			return $user->first();
+		}
+		private function getSpeakerInfo($speakerId) {
+			$query = $this->parseQuery("Speaker");
+			$query->equalTo("objectId", $speakerId);
+			$query->limit(1);
+			return $query->first();
+		}
+		private function getSpeakerQuestions($speakerId) {
+			$questionsQ = $this->parseQuery("SurveyQuestion");
+			$questionsQ->equalTo("speakerId", $speakerId);
+			$questionsQ->select(['position', 'question']);
+			$questionsQ->ascending("position");
+			return $questionsQ->find();
+		}
+		private function getNotificationInfo($notId) {
+			$query = $this->parseQuery("Notification");
+			$query->equalTo("objectId", $notId);
+			$query->limit(1);
+			return $query->first();
+		} 
+		private function getCompanyId($company) {
+			$query = $this->parseQuery("Company");
+			$query->equalTo("name", $company);
+			$query->limit(1);
+			return $query->first();
+		}
+
+		public function getCompanyName($companyId) {
+			if($companyId) {
+				$query = $this->parseQuery("Company");
+				$query->equalTo('objectId', $companyId);
+				$query->select(['objectId', 'name']);
+				$results = $query->first();
+				return $results->get('name');
+			} return;
+		}
+		private function getCompanyInfo($companyId) {
+			$query = $this->parseQuery("Company");
+			$query->equalTo("objectId", $companyId);
+			$query->limit(1);
+			return $query->first();
+		}
+		public function getEventId($eventName) {
+			$eventName = $this->getCorrectGET($eventName);
+			$query = $this->parseQuery("Event");
+			$query->equalTo("name", $eventName);
+			$query->limit(1);
+			return $query->first()->getObjectId();
+		}
+		private function getEventInfo($eventId) {
+			$query = $this->parseQuery("Event");
+			$query->equalTo("objectId", $eventId);
+			$query->limit(1);
+			return $query->first();
+		}
+		private function getSpeakerName($speakerId) {
+			$query = $this->parseQuery("Speaker");
+			$query->equalTo("objectId", $speakerId);
+			$query->select(['firstName', 'lastName']);
+			$query->limit(1);
+			$results = $query->first();
+			return ($results->get('firstName') . ' ' . $results->get("lastName"));
+		}
+		private function getSessionTitle($id) {
+			$query = $this->parseQuery("Session");
+			$query->equalTo("objectId", $id);
+			$query->limit(1);
+			return $query->first()->get("title");
+		}
+		private function getSessionInfo($id) {
+			$query = $this->parseQuery("Session");
+			$query->equalTo("objectId", $id);
+			$query->limit(1);
+			return $query->first();
+		}
+		private function getAllEvents($organizer) {
+			$company_event = $this->parseQuery("Event");
+			$company_event->containedIn("organizers", [$organizer]);
+			return $company_event->find();
+		}
+		private function getBeaconId($beacon) {
+			$query = $this->parseQuery("Beacon");
+			$query->equalTo("name", $beacon);
+			$query->limit(1);
+			return $query->first()->getObjectId();
+		}
+		private function getBeaconName($beacon) {
+			$query = $this->parseQuery("Beacon");
+			$query->equalTo("objectId", $beacon);
+			$query->limit(1);
+			return $query->first()->get("name");
+		}
+		/**
+		  * @return Array of Key => Value all Beacons from Event based on event ID
+		  */
+		private function getAllBeaconsForEvent($event) {
+			$eventId = $this->eventId;
+			$query = $this->parseQuery("Beacon");
+			$query->equalTo("eventId", $eventId);
+			return $query->find();
+		}
+		private function getSpeakersAtSession($sessionId) {
+			$query = $this->parseQuery("Session");
+			$query->equalTo("objectId", $sessionId);
+			return $query->first()->get("speakerIds");
+		}
+		private function getTwitterHash($hash) {
+			$returnedArray = array();
+			$regex = '/\#/';
+			$matches = preg_split($regex, $hash);
+			foreach($matches as $mat) {
+				array_push($returnedArray, $mat);
+			}
+			$newArray = array_shift($returnedArray);
+			return $returnedArray;
+		}
+		/** @NOTE:
+			Following function returns correct get variable. Coincides with .htaccess file		
+		**/
+		public function getCorrectGET($GET) {
+			$regex = '/\-/';
+			$matches = preg_replace($regex, ' ', $GET);
+			if($matches) {
+				return $matches;
+			}
+			return preg_replace('#[^0-9a-z]#i', '', $GET);
+		}
+		/** @NOTE:
+			Following two functions need to redefine eventId because they are ajax calls
+		**/
+		private function getCompaniesAtEvent($event) {
+			$query = $this->parseQuery("EventCompany");
+			$query->equalTo("eventId", $this->getEventId($event));
+			$query->equalTo("companyRole", 'exhibitor');
+			return $query->find();
+		}
+		private function getSessionsAtEvent($event) {
+			$eventId = $this->getEventId($event);
+			$query = $this->parseQuery("Session");
+			$query->equalTo("eventId", $eventId);
+			return $query->find();
+		}
+		/* -- End Ajax -- */
+		private function getBeaconEvent($beacon) {
+			$query = $this->parseQuery("Beacon");
+			$query->equalTo("objectId", $beacon);
+			return $query->first()->get("eventId");
+		}
+		private function isEvent($event, $type = null) {
+			$query = $this->parseQuery("Event");
+			if($type == 'object')
+				$query->equalTo("objectId", $event);
+			else if($type == 'name')
+				$query->equalTo("name", $this->getCorrectGET($event));
+			return ($query->count() > 0);
+		}
+		/* Setter Functions */
+		public function setEventId($event) {
+			if($this->isEvent($event, 'object')) {
+				$this->eventId = $event;
+				$this->event = $this->getEventInfo($event)->get("name");
+			} else if ($this->isEvent($event, 'name')) {
+				$this->eventId = $this->getEventId($event);
+				$this->event = $event;
+			}
+			$_SESSION['eventId'] = $this->eventId != null || $this->eventId != '' ? $this->eventId : $_SESSION['eventId']; 
+		}
+		/* Boolean and Non Specific Functions*/
+		public function hasEventInfo($event, $type) {
+			$hasEventInfo = false;
+			$eventId = $this->eventId;
+  			switch ($type) {
+				case 'Speaker':
+					$query = $this->parseQuery("Speaker");
+					$query->equalTo("eventId", $eventId);
+					$results = $query->count();
+					if($results > 0) 
+						$hasEventInfo = true;
+					break;
+				case 'Session':
+					$query = $this->parseQuery("Session");
+					$query->equalTo("eventId", $eventId);
+					$results = $query->count();
+					if($results > 0) 
+						$hasEventInfo = true;
+					break;
+				case 'Exhibitor':
+					$query = $this->parseQuery("Exhibitor");
+					$query->equalTo("eventId", $eventId);
+					$results = $query->count();
+					if($results > 0) 
+						$hasEventInfo = true;
+					break;
+				case 'Beacon':
+					$query = $this->parseQuery("Beacon");
+					$query->equalTo("eventId", $eventId);
+					$results = $query->count();
+					if($results > 0) 
+						$hasEventInfo = true;
+					break;
+				case 'Notification':
+					$query = $this->parseQuery("Notification");
+					$query->select("beaconId");
+					$results = $query->find();
+					$allBeacons = $this->getAllBeaconsForEvent($this->event);
+					foreach($allBeacons as $beacon) {
+						foreach($results as $not) {
+							if($beacon->getObjectId() == $not->get("beaconId")) {
+								$hasEventInfo = true;
+								break;
+							}
+						}
+					}
+					break;
+				case 'Survey':
+					$query = $this->parseQuery("Survey");
+					$query->equalTo("eventId", $eventId);
+					$results = $query->count();
+					if($results > 0) 
+						$hasEventInfo = true;
+					break;
+				default:
+					echo "Invalid Case Option";
+					break;
+			}
+			return $hasEventInfo;
+		}
+		public function chooseCorrectTime($date_pass) {
+			$date = new DateTime($date_pass);
+			return $date->setTimezone(new DateTimeZone('UTC'));			
+		}
+		public function chooseCorrectEditFill($table, $id) {
+			$table_name = $this->getSelectedTable($table);
+			switch ($table_name) {
+				case 'Event':
+					return $this->buildEditFillEvent($id);
+					break;
+				case 'Speaker':
+					return $this->buildEditFillSpeaker($id);
+					break;
+				case 'Session':
+					return $this->buildEditFillSession($id);
+					break;
+				case 'Exhibitor':
+					return $this->buildEditFillExhibitor($id);
+					break;
+				case 'Beacon':
+					return $this->buildEditFillBeacon($id);
+					break;
+				case 'Notification':
+					return $this->buildEditFillNotification($id);
+					break;
+				case 'Survey':
+					return $this->buildEditFillSurvey($id);
+					break;
+				default:
+					echo "Cannot choose correct Fill";
+					break;
+			}
+		}
+		private function splitName($fullName) {
+			$returnedArray = array();
+			$regex = '/\b/';
+			$matches = preg_split($regex, $fullName);
+			foreach($matches as $mat) {
+				array_push($returnedArray, $mat);
+			}
+			$newArray = array_shift($returnedArray);
+			return $returnedArray;
+		}
+		private function makeJSONArray($arr) {
+			return json_encode($arr);
+		}
+		/* Builder Functions */
+		public function buildEventEditTable($organizer) {
+			$allEvents = $this->getAllEvents($organizer);
+			$html = "";
+			for ($i = 0; $i < count($allEvents); $i++) {
+				$current_event = $this->getEventInfo($allEvents[$i]->getObjectId());
+				$name = $current_event->get("name");
+				$html .= "<tr data-href='/Organizer/Admin/$name'>"
+						."<td>". $current_event->get("name") . "</td>"
+						."<td>". $current_event->get("location") . "</td>"
+						."<td>". $current_event->get("city") . ', ' . $current_event->get("state") . "</td>"
+						."<td>". $current_event->get('startDate')->format('Y-m-d') . "</td>"
+						."<td>". "<a href='/Organizer/Admin/". $current_event->get("name") ."'><i class='fa fa-edit'> </i> Edit</a>"
+						."</tr>";
+			}
+			return $html;
+		}
+		/* Event_build */
+		public function buildEventEditDisplay($eventName) {
+			$eventId = $this->eventId;
+			$query = $this->parseQuery("Event");
+			$query->equalTo("objectId", $eventId);
+			$event = $query->first();
+			$html = "<table class='table table_sortable'>";	
+			$html .=  "<tr><th class='table-header'>Name</th>"
+					."<th class='table-header-event'>Logo</th>"
+					."<th class='table-header-event'>Date</th>"
+					."<th class='table-header-event'>Location</th>"
+					."<th class='table-header-event'>Address</th>"
+					."<th class='table-header-event'>#Tags</th>"
+					."<th class='table-header-event'>Code</th>"
+					."<th class='table-header-event'>Edit</th></tr>";
+			if($event) {
+				for($i = 0; $i < count($event->get("twTags")); $i++) {
+					$twitter .= '#'. $event->get("twTags")[$i] . ' ';
+				}
+				$table = $this->tables['Event'];
+				$html .= "<tr><td>". $event->get("name")."</td>"
+					   	 ."<td><img src='". ($event->get("logo") ? $event->get("logo")->getURL() : '/assets/img/logo_placeholder.png')."' width='50'></td>"
+					   	 ."<td>". $event->get("startDate")->format("Y-m-d H:i:s")."</td>"	
+					   	 ."<td>". $event->get("location")."</td>"
+					   	 ."<td>". $event->get("address"). ', ' . $event->get("city")."</td>"
+					   	 ."<td>". $twitter ."</td>"
+					   	 ."<td>". $event->get("eventCode")."</td>"
+					   	."<td><a href='/Organizer/Admin/edit/$eventName/$eventId/$table'><i class='fa fa-plus-square-o'></i>  Edit</a></td>"
+						."</tr>";
+			} else {
+				$html .= '<tr><td>No Event Info Added Yet</td></tr>';
+			}
+			$html .= "</table>";
+			return $html;
+		}
+		public function buildSpeakersAtEvent($event) {
+			$eventId = $this->eventId;
+			$query = $this->parseQuery("Speaker");
+			$query->equalTo("eventId", $eventId);
+			$results = $query->find();
+			$html = "<table class='table table_sortable'>";
+			$html .= "<tr><th class='table-header'>Pic</th>"
+					."<th class='table-header'>Name</th>"
+					."<th class='table-header'>Company</th>"
+					."<th class='table-header'>Title</th>"
+					."<th class='table-header'>Edit</th>"
+					."<th class='table-header'>Delete</th></tr>";
+			if(count($results) > 0) {
+				foreach($results as $speaker) {
+					$id = $speaker->getObjectId();
+					$table = $this->tables['Speaker'];
+					$avatar = $speaker->get("avatar") ? $speaker->get("avatar")->getURL() : "/assets/img/avatar5.png";
+					$html .= "<tr><td><img src='$avatar' alt='' width='50'></td>"
+							."<td>" . $speaker->get("firstName") . " " . $speaker->get("lastName")."</td>"
+							."<td>". $speaker->get("company") ."</td>"
+						."<td>". $speaker->get("title") ."</td>"
+							."<td><a href='/Organizer/Admin/edit/$event/$id/$table'><i class='fa fa-plus-square-o'></i>  Edit</a></td>"
+							."<td><a class='delete_chosen' data-info='$id' data-info2='$table' data-toggle='modal' data-target='#deleteModal' href=''><i class='fa fa-trash'></i>  Delete</a></td>"
+							. "</tr>";
+				}
+			} else {
+				$html .= '<tr><td>No Speakers Added Yet</td></tr>';
+			}
+			$html .= "</table>";
+			return $html;
+		}
+		public function buildSessionsAtEvent($event) {
+			$eventId = $this->eventId;
+			$query = $this->parseQuery("Session");
+			$query->equalTo("eventId", $eventId);
+			$results = $query->find();
+			$html = "<table class='table table_sortable'>";	
+			$html .= "<tr><th class='table-header'>Title</th>"
+					."<th class='table-header'>Room</th>"
+					."<th class='table-header'>Speaker</th>"
+					."<th class='table-header'>Start Time</th>"
+					."<th class='table-header'>Details</th>"
+					."<th class='table-header'>Edit</th>"
+					."<th class='table-header'>Delete</th></tr>";
+			if(count($results) > 0) {
+				foreach($results as $session) {
+					$id = $session->getObjectId();
+					$table = $this->tables['Session'];
+					$speakers = $this->getSpeakersAtSession($session->getObjectId());
+					$html .= "<tr>"
+							."<td>". $session->get("title") ."</td>"
+							."<td>". $session->get("roomName") ."</td>"
+							."<td>Speaker</td>"
+							."<td>". $session->get("startTime")->format("Y-m-d H:i:s") ."</td>"
+							."<td>". substr(trim($session->get("details")), 0, 50) ."...</td>"
+							."<td><a href='/Organizer/Admin/edit/$event/$id/$table'><i class='fa fa-plus-square-o'></i>  Edit</a></td>"
+							."<td><a class='delete_chosen' data-info='$id' data-info2='$table' data-toggle='modal' data-target='#deleteModal' href=''><i class='fa fa-trash'></i>  Delete</a></td>"
+							."</tr>";
+					}
+			} else {
+				$html .= '<tr><td>No Sessions Added Yet</td></tr>';
+			}
+			$html .= "</table>";
+			return $html;
+		}
+		public function buildExhibitorAtEvent($event) {
+			$eventId = $this->eventId;
+			$query = $this->parseQuery("Exhibitor");
+			$query->equalTo("eventId", $eventId);
+			$results = $query->find();
+			$html = "<table class='table table_sortable'>";	
+			$html .= "<tr><th class='table-header'>Logo</th>"
+					."<th class='table-header'>Name</th>"
+					."<th class='table-header'>Website</th>"
+					."<th class='table-header'>Edit</th>"
+					."<th class='table-header'>Delete</th></tr>";
+			if(count($results) > 0) {
+				foreach ($results as $exhibitor) {
+					$id = $exhibitor->getObjectId();
+					$table = $this->tables['Exhibitor'];
+					// $companyInfo = $this->getCompanyInfo($exhibitor->get("companyId"));
+					$logo = $exhibitor->get("logo") ? $exhibitor->get("logo")->getURL() : "/assets/img/logo_placeholder.png";
+					$html .= "<tr>"
+							."<td><img src='". $logo ."' width='50'>" ."</td>"
+							."<td>". $exhibitor->get("name") ."</td>"
+							."<td>". $exhibitor->get("website") ."</td>"
+							."<td><a href='/Organizer/Admin/edit/$event/$id/$table'><i class='fa fa-plus-square-o'></i>  Edit</a></td>"
+							."<td><a class='delete_chosen' data-info='$id' data-info2='$table' data-toggle='modal' data-target='#deleteModal' href=''><i class='fa fa-trash'></i>  Delete</a></td>"	
+							."</tr>";
+				}
+			} else {
+				$html .= '<tr><td>No Exhibitors Added Yet</td></tr>';
+			}
+			$html .= "</table>";
+			return $html;
+		}
+		/* Needs to parse for type of beacon */
+		public function buildBeaconAtEvent($event) {
+			$eventId = $this->eventId;
+			$query = $this->parseQuery("Beacon");
+			$query->equalTo("eventId", $eventId);
+			$results = $query->find();
+			$html = "<table class='table table_sortable'>";	
+			$html .= "<tr><th class='table-header'>Beacon Name</th>"
+					."<th class='table-header'>Company Name</th>"
+					."<th class='table-header'>Company Logo</th>"
+					."<th class='table-header'>Edit</th>"
+					."<th class='table-header'>Delete</th>
+					</tr>";
+			if(count($results) > 0) {
+				foreach ($results as $beacon) {
+					$table = $this->tables['Beacon'];
+					$id = $beacon->getObjectId();
+					$company = $this->getCompanyInfo($beacon->get("companyId")) ? $this->getCompanyInfo($beacon->get("companyId")) : NULL;
+					if($company) {
+						$html .= "<tr>"
+								."<td>". $beacon->get("name") ."</td>"
+								."<td>". $company->get("name") ."</td>"
+								."<td><img src='". ($company->get("logo") ? $company->get("logo")->getURL() : '/assets/img/logo_placeholder.png') ."' width='50'>" ."</td>"
+								."<td><a href='/Organizer/Admin/edit/$event/$id/$table'><i class='fa fa-plus-square-o'></i>  Edit</a></td>"
+								."<td><a class='delete_chosen' data-info='$id' data-info2='$table' data-toggle='modal' data-target='#deleteModal' href=''><i class='fa fa-trash'></i>  Delete</a></td>"	
+								."</tr>";
+					} else {
+						$html .= "<tr>"
+								."<td>". $beacon->get("name") ."</td>"
+								."<td>NO Company</td>"
+								."<td>NO Company</td>"
+								."<td><a href='/Organizer/Admin/edit/$event/$id/$table'><i class='fa fa-plus-square-o'></i>  Edit</a></td>"
+								."<td><a class='delete_chosen' data-info='$id' data-info2='$table' data-toggle='modal' data-target='#deleteModal' href=''><i class='fa fa-trash'></i>  Delete</a></td>"	
+								."</tr>";
+					}
+				}
+			} else {
+				$html .= '<tr><td>No Beacons Added Yet</td></tr>';
+			}
+			$html .= "</table>";
+			return $html;
+		}
+		public function buildNotificationAtEvent($event) {
+			$eventId = $this->eventId;
+			$allBeacons = $this->getAllBeaconsForEvent($event);
+			$beacon_array = array();
+			$query = $this->parseQuery("Notification");
+			foreach ($allBeacons as $beacon) {	 
+				array_push($beacon_array, $beacon->getObjectId());
+			}
+			$query->containedIn("beaconId", $beacon_array);
+			$results = $query->find();
+			$html = "<table class='table table_sortable'>";	
+			$html .= "<tr><th class='table-header'>Title</th>"
+					."<th class='table-header'>Trigger Beacon</th>"
+					."<th class='table-header'>Trigger Time</th>"
+					."<th class='table-header'>Message</th>"
+					."<th class='table-header'>PDF</th>"
+					."<th class='table-header'>URL</th>"
+					."<th class='table-header'>Edit</th>"
+					."<th class='table-header'>Delete</th>
+					</tr>";
+			if(count($results) > 0) {
+				foreach ($results as $not) {
+					$table = $this->tables['Notification'];
+					$id = $not->getObjectId();
+					$pdf = $not->get("pdfFile") ? $not->get("pdfFile") : "";
+					$message = (strlen($not->get("message")) < 50) ? $not->get("message") : substr(0, 50, $not->get("message") . '...');
+ 					$html .= "<tr>"
+							."<td>". $not->get("title") ."</td>"
+							."<td>". $this->getBeaconName($not->get("beaconId")) ."</td>"
+							."<td>". $not->get("triggerTimeInSecs") ."</td>"
+							."<td>". $message ."</td>"
+							."<td><a target='_blank' href='". ($pdf ? $pdf->getURL() : '') ."'>PDF</a>"."</td>"
+							."<td><a target='_blank' href='".$not->get("url") ."'>URL</a>"."</td>"
+							."<td><a href='/Organizer/Admin/edit/$event/$id/$table'><i class='fa fa-plus-square-o'></i>  Edit</a></td>"
+							."<td><a class='delete_chosen' data-info='$id' data-info2='$table' data-toggle='modal' data-target='#deleteModal' href=''><i class='fa fa-trash'></i>  Delete</a></td>"	
+							."</tr>";
+				}
+			}  else {
+				$html .= '<tr><td>No Notifications Added Yet</td></tr>';
+			}
+			$html .= "</table>";
+			return $html;
+		}
+		/*TODO: Speaker wont load correctly */
+		public function buildSurveyAtEvent($event) {
+			$eventId = $this->eventId;
+			$query = $this->parseQuery("Survey");
+			$query->equalTo("eventId", $eventId);
+			$results = $query->find();
+			$questions = $this->parseQuery("SurveyQuestion");
+			$html = "<table class='table table_sortable'>";	
+			$html .= "<tr><th class='table-header'>Title</th>"
+					."<th class='table-header'>Speaker</th>"
+					."<th class='table-header'>Start Time</th>"
+					."<th class='table-header'>Complete Count</th>"
+					."<th class='table-header'>Questions</th>"
+					."<th class='table-header'>Edit</th>"
+					."<th class='table-header'>Delete</th>
+					</tr>";
+			if(count($results) > 0) {
+				foreach ($results as $survey) {
+					$table = $this->tables['Survey'];
+					$questions->equalTo("surveyId", $survey->getObjectId());
+					$quest_survey = $questions->find();
+					$id = $survey->getObjectId();
+					// $speak = $this->getSpeakerInfo($survey->get("speakerId"));
+					$date = $survey->get("startDate") ? $survey->get("startDate") : "No Date Defined";
+					$html .= "<tr>"
+							."<td>". $survey->get("title") ."</td>"
+							."<td>"."Speaker"./*. $speak->get("firstName") . ' '. $speak->get("lastName") .*/"</td>"
+							."<td>". ($date == "No Date Defined" ? $date : $date->format("Y-m-d H:i:s")) ."</td>"
+							."<td>". $survey->get("completeCount") ."</td>"
+							."<td>". count($quest_survey) ."</td>"
+							."<td><a href='/Organizer/Admin/edit/$event/$id/$table'><i class='fa fa-plus-square-o'></i>  Edit</a></td>"
+							."<td><a class='delete_chosen' data-info='$id' data-info2='$table' data-toggle='modal' data-target='#deleteModal' href=''><i class='fa fa-trash'></i>  Delete</a></td>"	
+							."</tr>";
+				}
+			}  else {
+				$html .= '<tr><td>No Surveys Added Yet</td></tr>';
+			}
+			$html .= '</table>';
+			return $html;
+		}
+		/* END Event_build */
+
+		/* Edit_build */
+		private function buildEditFillEvent($id) {
+			$query = $this->parseQuery("Event");
+			$query->equalTo("objectId", $id);
+			$eventInfo = $query->first();
+			$name = $eventInfo->get("name");
+			$logo = $eventInfo->get('logo') ? $eventInfo->get("logo")->getURL() : "/assets/img/logo_placeholder.png";
+			$startDate = $eventInfo->get("startDate") ? $eventInfo->get("startDate")->format("Y-m-d H:i:s") : "";
+			$endDate = $eventInfo->get("endDate") ? $eventInfo->get("endDate")->format("Y-m-d H:i:s") : "";
+			$address = $eventInfo->get("address");
+			$city = $eventInfo->get("city");
+			$location = $eventInfo->get("location");
+			$triggerBeacons = $eventInfo->get("triggerBeacons");
+			$tb_array = array();
+			foreach ($triggerBeacons as $beacon) {
+				array_push($tb_array, $this->getBeaconName($beacon));
+			}
+			$triggerBeacons = implode(" ", $tb_array);
+			$twitter_array = array();
+			$twTags = $eventInfo->get("twTags");
+			foreach ($twTags as $tw) {
+				array_push($twitter_array, "#".$tw);
+			}
+			$twTags = implode(" ", $twitter_array);
+			$eventCode = strval($eventInfo->get("code"));
+			$organizerCode = $eventInfo->get("organizerCode");
+			$div = '<div class="form-group col-md-8">';
+			$endD = '</div>';
+			$html =	$div."<label for='event_name'>Name:</label><input name='event_name' type='text' value='$name' class='form-control input-md'>". $endD
+				   .$div."<label for='event_logo'>Logo:</label><input class='logo_ex form-control input-md' type='file' name='event_logo' value='$logo'>".$endD
+				   .$div."<label for='event_startDate'>Start Date: </label><input class='form-control input-md date_pick' type='text' name='event_startDate' value='$startDate'>".$endD
+				   .$div."<label for='event_endDate'>End Date: </label><input class='form-control input-md date_pick' type='text' name='event_endDate' value='$endDate'>".$endD
+				   .$div."<label for='event_address'>Address: </label><input class='form-control input-md' type='text' name='event_address' value='$address'>".$endD
+				   .$div."<label for='event_city'>City: </label><input class='form-control input-md' type='text' name='event_city' value='$city'>".$endD
+				   .$div."<label for='event_location'>Location: </label><input class='form-control input-md' type='text' name='event_location' value='$location'>".$endD
+				   .$div."<label for='event_triggerBeacons'>Trigger Beacons: </label><input class='form-control input-md' type='text' name='event_triggerBeacons' value='$triggerBeacons'>".$endD
+				   .$div."<label for='event_twitterTags'>Twitter Tag: </label><input class='form-control input-md' type='text' name='event_twitterTags' value='$twTags'>".$endD
+				   .$div."<label for='event_code'>Code: </label><input class='form-control input-md' type='text' name='event_code' value='$eventCode'>".$endD
+				   .$div."<label for='event_orgCode'>Organizer Code: </label><input class='form-control input-md' type='text' name='event_orgCode' value='$organizerCode'>".$endD;					
+			return $html;	
+		}
+		private function buildEditFillSpeaker($id) {
+			$query = $this->parseQuery("Speaker");
+			$query->equalTo("objectId", $id);
+			$results = $query->first();
+			$fname = $results->get("firstName");
+			$lname = $results->get("lastName");
+			$company = $results->get("company");
+			$bio = $results->get("about");
+			$linkedIn = $results->get("linkedInURL");
+			$twitter = $results->get("twitterURL");
+			$image = $results->get("avatar") ? $results->get("avatar")->getURL() : "";
+			$div = '<div class="form-group col-md-8">';
+			$endD = '</div>';
+			$html =	$div."<label for='speaker_firstName'>First Name:</label><input name='speaker_firstName' type='text' value='$fname' class='form-control input-md'>". $endD
+				   .$div."<label for='speaker_lastName'>Last Name:</label><input class='form-control input-md' type='text' name='speaker_lastName' value='$lname'>".$endD
+				   .$div."<label for='speaker_company'>Company: </label><input class='form-control input-md' type='text' name='speaker_company' value='$company'>".$endD
+				   .$div."<label for='speaker_linkedIn'>LinkedIn URL: </label><input class='form-control input-md' type='text' name='speaker_linkedIn' value='$linkedIn'>".$endD
+				   .$div."<label for='speaker_twitter'>Twitter URL: </label><input class='form-control input-md' type='text' name='speaker_twitter' value='$twitter'>".$endD
+				   .$div."<label for='speaker_image'>Profile Picture: </label><input class='form-control input-md logo_ex' type='file' name='speaker_image' value='$image'>".$endD
+				   .$div."<label for='speaker_details'>Bio: </label><textarea rows='10' class='form-control input-md' name='speaker_details'>$bio</textarea>".$endD;
+			$speaker_questions = $this->getSpeakerQuestions($results->getObjectId());
+			$i = 1;
+			foreach($speaker_questions as $questions) {
+				$html.= $div."<label for='speaker_question$i'>Question $i:</label><input name='speaker_question$i' type='text' value='".$questions->get("question")."' class='form-control input-md'>". $endD;
+				$i++;	
+			}
+			$html .= "<input type='hidden' name='question_amount' value='$i'>";
+			return $html;	
+		}
+		private function buildEditFillSession($id) {
+			$query = $this->parseQuery("Session");
+			$query->equalTo("objectId", $id);
+			$results = $query->first();
+			$title = $results->get("title");
+			$roomNumber = $results->get("roomName");
+			$startTime = $results->get("startTime")->format("Y-m-d H:i:s");
+			$endTime = $results->get('endTime')->format("Y-m-d H:i:s");
+			$details = $results->get("details");
+			$div = '<div class="form-group col-md-8">';
+			$endD = '</div>';
+			$html =	$div."<label for='update_title'>Title:</label><input name='update_title' type='text' value='$title' class='form-control input-md'>". $endD
+				   .$div."<label for='update_room'>Room Name:</label><input class='form-control input-md' type='text' name='update_room' value='$roomNumber'>".$endD
+				   .$div."<label for='update_speaker'>Speaker: </label><select data-live-search='true' class='form-control input-md selectpicker' name='update_speaker'>". $this->buildSpeakerSelection($results->get("speakerId")). "</select>".$endD
+				   .$div."<label for='update_startTime'>Start Date: </label><input class='form-control input-md date_pick' type='text' name='update_startTime' value='$startTime'>".$endD
+				   .$div."<label for='update_endTime'>End Date: </label><input class='form-control input-md date_pick' type='text' name='update_endTime' value='$endTime'>".$endD
+				   .$div."<label for='update_details'>Details: </label><textarea rows='10' class='form-control input-md' name='update_details'>$details</textarea>".$endD;
+			return $html;	
+		}
+		private function buildEditFillExhibitor($id) {
+			$query = $this->parseQuery("Exhibitor");
+			$query->equalTo("objectId", $id);
+			$results = $query->first();
+			$name = $results->get("name");
+			$desc = $results->get("website");
+			$logo = $results->get("logo") ? $results->get("logo")->getURL() : ""; 
+			$div = '<div class="form-group col-md-8">';
+			$endD = '</div>';
+			$html =	$div."<label for='exhibitor_name'>Name: </label><input name='exhibitor_name' type='text' value='$name' class='form-control input-md'>". $endD
+				   .$div."<label for='exhibitor_summary'>Website: </label><input class='form-control input-md' name='exhibitor_summary' value='$desc'>".$endD
+				   .$div."<label for='exhibitor_logo'>Logo: </label><input class='form-control input-md logo_ex' type='file' name='exhibitor_logo' value='$logo'>".$endD;
+			return $html;	
+		}
+		private function buildEditFillBeacon($id) {
+			$query = $this->parseQuery("Beacon");
+			$query->equalTo("objectId", $id);
+			$results = $query->first();
+			$name = $results->get("name");
+			$company = $this->getCompanyName($results->get("companyId"));
+			$div = '<div class="form-group col-md-8">';
+			$endD = '</div>';
+			$html =	$div."<label for='beacon_name'>Name: </label><input name='beacon_name' type='text' value='$name' class='form-control input-md'>". $endD
+				.$div."<label for='beacon_company'>Company: </label><input name='beacon_company' type='text' value='$company' class='form-control input-md'>". $endD;
+			return $html;	
+		}
+		private function buildEditFillNotification($id) {
+			$query = $this->parseQuery("Notification");
+			$query->equalTo("objectId", $id);
+			$results = $query->first();
+			$title = $results->get("title");
+			$message = $results->get("message");
+			$beacon = $results->get("beaconId");
+			$triggerTime = $results->get("triggerTimeInSecs");
+			$url = $results->get("url");
+			$pdf = $results->get("pdfFile") ? $results->get("pdfFile")->getURL() : "";
+			$div = '<div class="form-group col-md-8">';
+			$endD = '</div>';
+			$html =	$div."<label for='not_title'>Name: </label><input name='not_title' type='text' value='$title' class='form-control input-md'>". $endD
+				   .$div."<label for='not_message'>Message: </label><textarea rows='5' class='form-control input-md' name='not_message'>$message</textarea>".$endD
+				   .$div."<label for='not_pdf'>PDF: </label><input class='form-control input-md logo_ex' type='file' name='not_pdf' value='$pdf'>".$endD
+				   .$div."<label for='not_url'>URL: </label><input class='form-control input-md' type='text' name='not_url' value='$url'>".$endD
+				   .$div."<label for='not_time'>Trigger When: </label><select data-live-search='true' class='form-control input-md selectpicker' name='not_time'>". $this->buildNotificationSelect(). "</select>".$endD
+				   .$div."<label for='not_beacon'>Beacon: </label><select data-live-search='true' class='form-control input-md selectpicker' name='not_beacon'>". $this->buildBeaconDropDown($this->event, $beacon). "</select>".$endD;
+			return $html;	
+		}
+		private function buildEditFillSurvey($id) {
+			$query = $this->parseQuery("Survey");
+			$questions = $this->parseQuery("SurveyQuestion");
+			$query->equalTo("objectId", $id);
+			$results = $query->first();
+			$questions->equalTo("surveyId", $id);
+			$questions->ascending("position");
+			$quest = $questions->find();
+			$html .= "<div class='form-group col-md-12'><label for='question_position'>Question Position: </label>";
+			$html .= '<ul name="question_position" id="sortable">';
+			foreach ($quest as $q) {
+				$html .= '<input class="hidden_position" id="position'.$q->get("position").'" type="hidden" name="position'.$q->get("position").'" value="'.$q->get("question").'">';
+				$html .= '<li id="question_position_'.$q->get("position").'" name="question_position'.$q->get("position").'" class="ui-state-default"><span class="ui-icon ui-icon-arrowthick-2-n-s"></span>'. $q->get("position") . '.) ' .$q->get("question").'</li>';
+			} 
+			$html .= '</ul><input type="hidden" name="number_of_ques" value='. count($quest) .'></div>';
+			$endD = '</div>';
+			$div .= "<div class='form-group col-md-12'>";
+			foreach($quest as $q) {	
+				$html .= $div . "<label for='survey_question".$q->get("position")."'>Question ".$q->get("position")." : </label><input class='form-control input-md' type='text' name='survey_question".$q->get("position")."' value='". $q->get("question") ."'> ".$endD;
+				$html .= $div. "<button class='btn btn-danger delete_ques' name='delete_node".$q->get("position")."' type='submit'>Delete Question</button>".$endD;
+			}
+			$html .= $div . '<label for="survey_title">Title: </label><input class="form-control input-md" type="input" name="survey_title" value="'.$results->get('title').'">'.$endD
+					.$div . '<label for="survey_start">Start Time: </label><input class="form-control input-md date_pick" type="text" name="survey_start" value="'.$results->get('startDate')->format("Y-m-d H:i:s").'">'.$endD
+					.$div . '<label for="survey_session">Session: </label><select data-live-search="true" class="form-control input-md selectpicker" name="survey_session">'. $this->buildSessionSelection($results->get("sessionId")) .'</select>'.$endD
+					.$div . '<label for="survey_speaker">Speaker: </label><select data-live-search="true" class="form-control input-md selectpicker" name="survey_speaker">'. $this->buildSpeakerSelection($results->get("speakerId")) .'</select>'.$endD;
+			return $html;
+		}
+		public function buildSpeakerSelection($selected) {
+			$query = $this->parseQuery("Speaker");
+			$query->select(["firstName", "lastName"]);
+			$query->equalTo("eventId", $this->eventId);
+			$results = $query->find();
+			foreach ($results as $res) {
+				$add = ($selected == $res->getObjectId() ? 'selected>' : '>');
+				$html .= '<option value="'.$res->getObjectId().'" '. $add. $res->get("firstName") . ' ' . $res->get("lastName") . '</option>';
+			}
+			return $html;
+		} 
+		public function buildBeaconSelection($event, $option) {
+			$html = '';
+			if($option == 'Exhibitor') {
+				$event_companies = $this->getCompaniesAtEvent($event);
+				$html .= '<option disabled selected>Choose an Exhibitor</option>';
+				foreach ($event_companies as $ec) {
+					$html .= '<option value="' . $ec->get("companyId") . '">' . $this->getCompanyInfo($ec->get("companyId"))->get("name") . '</option>';
+				}
+			} else if($option == 'Session') {
+				$session_option = $this->getSessionsAtEvent($event);
+				$html .= '<option disabled selected>Choose a Session</option>';
+				foreach($session_option as $sess) {
+					$html .= '<option value=' . $sess->getObjectId() . '>' . $sess->get("title") . '</option>';
+				}
+			} else {
+				$html .= '<option>Sorry something went wrong. Try Again Later.</option>';
+			}
+			return $html;
+		}
+		public function buildBeaconDropDown($event, $selected) {
+			$beacons = $this->getAllBeaconsForEvent($event);
+			foreach($beacons as $ba) {
+				$select = $selected == $ba->getObjectId() ? "selected>" : ">";
+				$html .= '<option value="' . $ba->getObjectId().'"' . $select . $ba->get("name") . '</option>';
+			}
+			return $html;
+		}
+		/**
+		  * @param $dynamic_array    Parse's Array of Notification Times in Seconds
+		  * @param $static_time 	 Default Number from Default Array of Times in minutes 
+		  * @return Boolean 		 True if the static_time is available and False otherwise
+		  */
+		private function checkNotificationTime($dynamic_array, $static_time) {
+			$available = true;
+			$loop_condition = true;
+			$i = 0;
+			while($loop_condition) {
+				if($dynamic_array[$i] != NULL) {
+					if($dynamic_array[$i]/60 < $static_time) {
+						$i++;
+					} else if(($dynamic_array[$i]/60) == $static_time || ($dynamic_array[$i]/60) < $static_time+5) {
+						$available = false;
+						$loop_condition = false;
+					}
+				} else {
+					$loop_condition = false;
+				}
+			}
+			return $available;
+		}
+		/**
+		  * @return HTML options for Select Field with available times for the Notification
+		  */
+		public function buildNotificationSelect() {
+			$specific_times = array(5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20, 25, 30, 45, 60, 75, 90);
+			$allBeacons = $this->getAllBeaconsForEvent($this->eventId);
+			$notifications_check = $this->parseQuery("Notification");
+			$notifications_check->containedIn("beaconId", $allBeacons);
+			$notifications_check->ascending('triggerTimeInSecs');
+			$event_nots = $notifications_check->find();	
+			$html = '';
+			$times_array = array();
+			$i = 0;
+			foreach ($event_nots as $not) {
+				array_push($times_array, $not->get("triggerTimeInSecs"));
+			}
+			foreach($specific_times as $time) {	
+				if($this->checkNotificationTime($times_array, $time)) {
+					$html .= '<option value=' . $time*60 . '>'. $time . '</option>';
+				} 
+			}
+			return $html;
+		}
+		public function buildSessionSelection($selected) {
+			$eventId = $this->eventId;
+			$query = $this->parseQuery("Session");
+			$query->equalTo("eventId", $eventId);
+			$results = $query->find();
+			$html = '';
+			foreach($results as $session) {
+				$select = $selected == $session->getObjectId() ? 'selecte`d>' : ">";
+				$html .= '<option value="' .$session->getObjectId().'"' . $select . $session->get("title") . '</option>';
+			}
+			return $html;
+		}
+		/* Submission Functions */
+		public function submitNewEvent($admin, $title, $desc, $location, $address, $city, $state, $zip, $country, $startTime, $endTime, $logo, $hash) {
+			$user_info = $this->getUserInfo($admin);
+			$companyId = $this->getCompanyId($user_info->get("company"));
+			$dateStart = new DateTime($startTime);
+			$dateEnd = new DateTime($endTime);
+			if($logo['name'] != null) {
+				$file = ParseFile::createFromData(file_get_contents($logo['tmp_name']), $logo['name']);
+			}
+			$event_submit = new ParseObject("Event");
+		    $event_submit->set("name", $title);
+		    $event_submit->set("location", $location);
+		    $event_submit->set("address", $address);
+		    $event_submit->set("city", $city);
+		    $event_submit->set("state", $state);
+		    $event_submit->set("zipCode", $zip);
+		    $event_submit->set("startDate", $dateStart);
+		    $event_submit->set("endDate", $dateEnd);
+		    $event_submit->setArray("organizers", array($admin));
+		    $hashTagArray = $this->getTwitterHash($hash);
+		    $event_submit->setArray("twTags", $hashTagArray);
+		    try {
+		    	if($logo['name'] != null) {
+			    	$file->save();
+			    
+			    	$event_submit->set("logo", $file);
+			    }	
+			    $event_submit->save();
+		    } catch (ParseException $ex) {
+		    	echo $ex->getMessage() . ' ' . $ex->getCode();
+		    }
+		}
+
+		public function submitNewSpeaker($event, $name, $company, $title, $bio, $linkedin, $twitter, $image) {
+			$event_info = $this->getEventInfo($this->eventId);
+			$speaker_submit = new ParseObject("Speaker");
+			$name_array = $this->splitName($name);
+			if($image['name'] != null) {
+				$file = ParseFile::createFromData(file_get_contents($image['tmp_name']), $image['name']);
+			}
+			$speaker_submit->set("firstName", $name_array[0]);
+			$speaker_submit->set("lastName", $name_array[2]);
+			$speaker_submit->set("company", $company);
+			$speaker_submit->set("title", $title);
+			$speaker_submit->set("about", $bio);
+			$speaker_submit->set("linkedInURL", $linkedin);
+			$speaker_submit->set("twitterURL", $twitter);
+			$speaker_submit->set("eventId", $this->eventId);
+			try {
+				if($image['name'] != null) {
+					$file->save();
+					$speaker_submit->set("avatar", $file);
+				}
+				$speaker_submit->save();
+			} catch (ParseException $ex) {
+				echo $ex->getMessage() . ' ' . $ex->getCode();
+			}
+		}
+
+		public function submitNewSession($event, $title, $desc, $startTime, $endTime, $room, $speaker) {
+			$eventId = $this->eventId;
+			$session_submit = new ParseObject("Session");
+			$dateStart = $this->chooseCorrectTime($startTime);
+			$dateEnd = $this->chooseCorrectTime($endTime);
+			$session_submit->set("title", $title);
+			$session_submit->set("details", $desc);
+			$session_submit->set("startTime", $dateStart);
+			$session_submit->set("endTime", $dateEnd);
+			$session_submit->set("roomName", $room);
+			if(!empty($speaker))
+				$session_submit->setArray("speakerIds", $speaker);
+			$session_submit->set("eventId", $eventId);
+			try {
+				$session_submit->save();
+			} catch (ParseException $ex) {
+				echo $ex->getMessage() . ' ' . $ex->getCode();
+			}
+		}
+
+		public function submitNewExhibitor($event, $name, $desc, $logo) {
+			$eventId = $this->eventId;
+			$exArray = array("exhibitor");
+			$exhibitor_submit = new ParseObject("Company");
+			$role_submit = new ParseObject("EventCompany");
+			$exhibitor_actual = new ParseObject("Exhibitor");
+			if($logo['name'] != null) {
+				$file = ParseFile::createFromData(file_get_contents($logo['tmp_name']), $logo['name']);
+			}
+			$exhibitor_actual->set("eventId", $eventId);
+			$exhibitor_submit->set("name", $name);
+			$exhibitor_submit->set("description", $desc);
+			$role_submit->setArray("companyRole", $exArray);
+			$role_submit->set("eventId", $eventId);
+			try {
+				if($logo['name'] != null) {
+					$file->save();
+					$exhibitor_submit->set("logo", $file);
+				}
+				$exhibitor_submit->save();
+				$role_submit->set("companyId", $exhibitor_submit->getObjectId());
+				$exhibitor_actual->set("name", $name);
+				$role_submit->save();
+				$exhibitor_actual->save();
+			} catch (ParseException $ex) {
+				echo $ex->getMessage() . ' ' . $ex->getCode();
+			}
+		}
+
+		public function submitNewBeacon($event, $name, $beacon_type, $beacon_for) {
+			$eventId = $this->eventId;
+			$beacon = new ParseObject("Beacon");
+			$beacon->set("name", $name);
+			$beacon->set("eventId", $eventId);
+			if($beacon_type == 'Trigger') {
+				$event = $this->parseQuery("Event");
+				$event->equalTo("objectId", $eventId);
+				$ev_result = $event->first();
+				try {
+					$beacon->save();
+					$ev_result->add("triggerBeacons", [$beacon->getObjectId()]);
+					$ev_result->save();
+				} catch (ParseException $ex) {
+					echo $ex->getMessage() . ' ' . $ex->getCode();
+				}
+			} else if($beacon_type == 'Organizer') {
+				try {
+					$beacon->save();
+				} catch (ParseException $ex) {
+					echo $ex->getMessage() . ' ' . $ex->getCode();
+				}
+			} else if($beacon_type == 'Exhibitor') {
+				$beacon->set("companyId", $beacon_for);
+				try {
+					$beacon->save();
+				} catch (ParseException $ex) {
+					echo $ex->getMessage() . ' ' . $ex->getCode();
+				}
+			} else if($beacon_type == 'Session') {
+				$session_query = $this->parseQuery("Session");
+				$session_query->equalTo("objectId", $beacon_for);
+				$session = $session_query->first();
+				try {
+					$beacon->save();
+					$session->set("beaconId", $beacon->getObjectId());
+					$session->save();
+				} catch (ParseException $ex) {
+					echo $ex->getMessage() . ' ' . $ex->getCode();
+				}
+			}
+		}
+
+		public function submitNewNotification($event, $title, $message, $PDF, $time, $url, $beacon) {
+			$eventId = $this->eventId;
+			$not_submit = new ParseObject("Notification");
+			if($PDF['name'] != null) {
+				$file = ParseFile::createFromData(file_get_contents($PDF['tmp_name']), $PDF['name']);
+			}
+			$not_submit->set("beaconId", $beacon);
+			$not_submit->set("title", $title);
+			$not_submit->set("message", $message);
+			$not_submit->set("triggerTimeInSecs", intval($time));
+			$not_submit->set("url", $url);
+			try {
+				if($PDF['name'] != null) {
+					$file->save();
+					$not_submit->set("pdfFile", $file);
+				}
+				$not_submit->save();
+			} catch (ParseException $ex) {
+				echo $ex->getMessage() . ' ' . $ex->getCode();
+			}
+		}
+		private function submitQuestionsSurvey($questions, $survey, $speaker) {
+			for ($i=0; $i < count($questions); $i++) { 
+				$q = new ParseObject("SurveyQuestion");
+				$q->set("position", $i+1);
+				$q->set("question", $questions[$i]);
+				$q->set("surveyId", $survey->getObjectId());
+				$q->set("speakerId", $speaker);
+				try {
+					$q->save();
+				} catch (ParseException $ex) {
+					echo $ex->getMessage() . ' ' . $ex->getCode();
+				}
+			}
+		}
+		public function submitNewSurvey($event, $name, $session, $questions) {
+			$eventId = $this->eventId;
+			$sess = $this->getSessionInfo($session);
+			$speakers = $this->getSpeakersAtSession($session);
+			$i = 1;
+			foreach($speakers as $speaker) {
+				$sur_submit = new ParseObject("Survey");
+				$sur_submit->set("title", $this->getSpeakerName($speaker));
+				$sur_submit->set("startDate", $sess->get("startTime"));
+				$sur_submit->set("speakerId", $speaker);
+				$sur_submit->set("sessionId", $session);
+				$sur_submit->set("eventId", $this->eventId);
+				$i++;
+				try {
+					$sur_submit->save();
+					$this->submitQuestionsSurvey($questions, $sur_submit, $speaker);
+				} catch (ParseException $ex) {
+					echo $ex->getMessage() . ' ' . $ex->getCode();
+				}
+			}
+		}
+		/* Update Functions */
+		public function updateEventInfo($name, $logo, $start, $end, $address, $city, $location, $triggerBeacons, $twitter, $code, $organizerCode) {
+			$query = $this->parseQuery("Event");
+			$query->equalTo("objectId", $this->eventId);
+			$event = $query->first();
+			$regex = "/\s|\#/";
+			$trigger_array1 = preg_split($regex, $triggerBeacons, -1, PREG_SPLIT_NO_EMPTY);
+			$twitter_array = preg_split($regex, $twitter, -1, PREG_SPLIT_NO_EMPTY);
+			$trigger_array = array();
+			foreach($trigger_array1 as $beacon) {
+				array_push($trigger_array, $this->getBeaconId($beacon));
+			}
+			$startDate = new DateTime($start);
+			$endDate = new DateTime($end);
+			if($logo['name'] != null) {
+				$file = ParseFile::createFromData(file_get_contents($logo['tmp_name']), $logo['name']);
+			}	
+			$event->set("name", $name);		
+			$event->set("startDate", $startDate);
+			$event->set("endDate", $endDate);
+			$event->set("address", $address);
+			$event->set("city", $city);
+			$event->set("location", $location);
+			$event->setArray('triggerBeacons', $trigger_array);
+			$event->setArray("twTags", $twitter_array);
+			$event->set("code", intval($code));
+			$event->set("organizerCode", $organizerCode);
+			try {
+				if($logo['name'] != null) {
+					$file->save();
+					$event->set("logo", $file);
+				}
+				$event->save();
+			} catch (ParseException $ex) {
+				echo $ex->getMessage() . ' ' . $ex->getCode();
+			}
+		}
+		private function updateSpeakerQuestions($id, $questions_array) {
+			$query = $this->parseQuery("SurveyQuestion");
+			$query->equalTo("speakerId", $id);
+			$query->ascending("position");
+			$questions = $query->first();
+			$i = 0;
+			foreach($questions as $question) {
+				if($question->get("question") != $questions_array[$i]) {
+					$question->set("questions", $questions_array[$i]);
+					try {
+						$question->save();
+					} catch (ParseException $ex) {
+						echo $ex->getMessage() . ' ' . $ex->getCode();
+					}
+				}
+			}
+		}
+		public function updateSpeakerInfo($id, $fname, $lname, $company, $linked, $twitter, $image, $bio, $questions) {
+			$query = $this->parseQuery("Speaker");
+			$query->equalTo("objectId", $id);
+			$speaker = $query->first();
+			if($image['name'] != null) {
+				$file = ParseFile::createFromData(file_get_contents($image['tmp_name']), $image['name']);
+			}
+			$speaker->set("firstName", $fname);
+			$speaker->set("lastName", $lname);
+			$speaker->set("company", $company);
+			$speaker->set("linkedInURL", $linked);
+			if(count($questions) > 0) {
+				$this->updateSpeakerQuestions($id, $questions);
+			}
+			$speaker->set("twitterURL", $twitter);
+			$speaker->set("about", $bio);
+			try {
+				if($image['name'] != null) {
+					$file->save();
+					$speaker->set("avatar", $file);
+				}
+				$speaker->save();
+			} catch (ParseException $ex) {
+				echo $ex->getMessage() . ' ' . $ex->getCode();
+			}
+		}
+		public function updateSessionInfo($id, $title, $room, $speaker, $startDate, $endDate, $details) {
+			$query = $this->parseQuery("Session");
+			$query->equalTo("objectId", $id);
+			$session = $query->first();
+			$startTime = new DateTime($startDate);
+			$endTime = new DateTime($endDate);
+			$session->set("title", $title);
+			$session->set("roomName", $room);
+			$session->set("speakerId", $speaker);
+			$session->set("startTime", $startTime);
+			$session->set("endTime", $endTime);
+			$session->set("details", $details);
+			try {
+				$session->save();
+			} catch (ParseException $ex) {
+				echo $ex->getMessage() . ' ' . $ex->getCode();
+			}
+		}
+		public function updateExhibitorInfo($id, $name, $sum, $logo) {
+			$query = $this->parseQuery("Exhibitor");
+			$query->equalTo("objectId", $id);
+			$exhibitor = $query->first();
+			$exhibitor->set("name", $name);
+			$exhibitor->set("website", $sum);
+			if($logo['name'] != null) {
+				$file = ParseFile::createFromData(file_get_contents($logo['tmp_name']), $logo['name']);
+			}
+			try {
+				if($logo['name'] != null) {
+					$file->save();
+					$exhibitor->set("logo", $file);
+				}	
+				$exhibitor->save();
+			} catch (ParseException $ex) {
+				echo $ex->getMessage() . ' ' . $ex->getCode();
+			}
+		}
+		public function updateBeaconInfo($id, $name, $company) {
+			$query = $this->parseQuery("Beacon");
+			$query->equalTo("objectId", $id);
+			$beacon = $query->first();
+			$beacon->set("name", $name);
+			$beacon->set("companyId", $this->getCompanyId($company));
+			try {
+				$beacon->save();
+			} catch (ParseException $ex) {
+				echo $ex->getMessage() . ' ' . $ex->getCode();
+			}
+		}
+		public function updateNotificationInfo($id, $not_title, $not_message, $not_pdf, $not_url, $not_time, $not_beacon) {
+			$query = $this->parseQuery("Notification");
+			$query->equalTo("objectId", $id);
+			$not = $query->first();
+			$not->set("title", $not_title);
+			$not->set("message", $not_message);
+			if($not_pdf['name'] != null) {
+				$file = ParseFile::createFromData(file_get_contents($not_pdf['tmp_name']), $not_pdf['name']);
+			}
+			$not->set("url", $not_url);
+			$not->set("triggerTimeInSecs", $not_time);
+			$not->set("beaconId", $not_beacon);
+			try {
+				if($not_pdf['name'] != null) {
+					$file->save();
+					$not->set("pdfFile", $file);
+				}
+				$not->save();
+			} catch (ParseException $ex) {
+				echo $ex->getMessage() . ' ' . $ex->getCode();
+			}
+		}
+		public function updateSurveyInfo($id, $pos_array, $ques_array, $title, $start, $session, $speaker, $added_questions) {
+			$survey_query = $this->parseQuery("Survey");
+			$quest_query = $this->parseQuery("SurveyQuestion");
+			$quest_query->equalTo("surveyId", $id);
+			$survey_query->equalTo("objectId", $id);
+			$quest_query->ascending("position");
+			$quest_query->select(['question', 'position']);
+			$quest = $quest_query->find();
+			$survey = $survey_query->first();
+			$j = 0;
+			foreach($quest as $q) {
+				for($i = 0; $i < count($pos_array)-1; $i++) {
+					if($q->get('question') == $pos_array[$i]) {
+						$q->set("position", $i+1);
+					}
+					try {
+						$q->save();
+					} catch (ParseException $ex) {
+						echo $ex->getMessage() . ' ' . $ex->getCode();
+					}
+				}
+				if($q->get("question") != $ques_array[$j]) {
+					$q->set("question", $ques_array[$j]);
+					try {
+						$q->save();
+					} catch (ParseException $ex) {
+						echo $ex->getMessage() . ' ' . $ex->getCode();
+					}
+				}	
+				$j++;				
+			}
+			if($added_questions != NULL) {
+				$po = count($pos_array);
+				foreach($added_questions as $questions) {
+					$qu = new ParseObject("SurveyQuestion");
+					$qu->set("question",  $questions);
+					$qu->set("surveyId", $id);
+					$qu->set("position", $po);
+					$qu->set("speakerId", $speaker);
+					$po++;
+					try {
+						$qu->save();
+					} catch (ParseException $ex) {
+						echo $ex->getMessage() . ' ' . $ex->getCode();
+					}
+				}
+			} 
+			$survey->set("sessionId", $session);
+			$startTime = new DateTime($start);
+			$survey->set('startDate', $startTime);
+			$survey->set("title", $title);
+			$survey->set("speakerId", $speaker);
+			try {
+				$survey->save();
+			} catch (ParseException $ex) {
+				echo $ex->getMessage() . ' ' . $ex->getCode();
+			}
+		}
+		/* Delete Functions */
+		private function redoSurveyPosition($info) {
+			$query = $this->parseQuery("SurveyQuestion");
+			$query->equalTo("surveyId", $info['specific']);
+			$query->ascending("position");
+			$questions = $query->find();
+			$iteration = $info['pos'];
+			foreach ($questions as $q) {
+				if($q->get("position") > $info['pos']) {
+					$q->set("position", $iteration);
+					$iteration++;
+					try {
+						$q->save();
+					} catch (ParseException $ex) {
+						echo $ex->getMessage() . ' ' . $ex->getCode();
+					}
+				}
+			}
+		}
+		private function deleteExhibitor($id) {
+			$query = $this->parseQuery("EventCompany");
+			$companyInfo = $this->parseQuery("Company");
+			$query->equalTo('objectId', $id);
+			$ev = $query->first();
+			$companyInfo->equalTo("objectId", $ev->get("companyId"));
+			$company = $companyInfo->find()[0];
+			$ev->destroy();
+			$ev->delete("objectId");
+			$company->destroy();
+			$company->delete("objectId");
+			try {
+				$company->save();
+				$ev->save();
+			} catch (ParseException $ex) {
+				echo $ex->getMessage() . ' ' . $ex->getCode();
+			}
+		}
+		private function deleteSurveyInfo($info) {
+			if($info['pos'] != null) {
+				$isLastQuestion = false;
+				$query = $this->parseQuery("SurveyQuestion");
+				$query->equalTo("surveyId", $info['specific']);
+				$query->equalTo("position", $info['pos']);
+				if($query->exists("position", $info['pos']+1)) {
+					$isLastQuestion = true;
+				}
+				$question = $query->find()[0];
+				if($isLastQuestion) $this->redoSurveyPosition($info);
+				$question->destroy();
+				try {
+					$question->save();
+				} catch (ParseException $ex) {
+					echo $ex->getMessage() . ' ' . $ex->getCode();
+				}
+			} else {
+				$surveyQ = $this->parseQuery("Survey");
+				$surveyQ->equalTo("objectId", $info['specific']);
+				$survey = $surveyQ->first();
+				$questionsQ = $this->parseQuery("SurveyQuestion");
+				$questionsQ->equalTo("surveyId", $info['specific']);
+				$questions = $questionsQ->find();
+				foreach($questions as $question) {
+					$question->destroy();
+				}
+				$survey->destroy();
+				try {
+					$question->save();
+					$survey->save();
+				} catch (ParseException $ex) {
+					echo $ex->getMessage() . ' ' . $ex->getCode();
+				}
+			}
+		}
+		public function deleteRow($id, $class) {
+			if($this->getSelectedTable($class) == 'Company') {
+				$this->deleteExhibitor($id);
+			} else if($this->getSelectedTable($class) == 'Survey'){
+				$this->deleteSurveyInfo($id);
+			} else {
+				/* General Delete */
+				$query = $this->parseQuery($this->getSelectedTable($class));
+				$query->equalTo("objectId", $id);
+				$results = $query->first();
+				$results->destroy();
+				$results->delete("objectId");
+				try {
+					$results->save();
+				} catch (ParseException $ex) {
+					echo $ex->getMessage() . ' ' . $ex->getCode();
+				}
+			}
+		}
+	}

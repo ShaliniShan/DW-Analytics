@@ -1,0 +1,1990 @@
+<<<<<<< .mine
+<?php
+//	ini_set("display_errors", 'on');
+	include_once("pages/modules/config.php");
+	include_once("pages/modules/admin/mainhead.php");
+	$pageTitle = "BEEP CMS & Attendee Analytics | Beantown Beacons";
+	include_once('head.php');
+	echo '<body class="framed main-scrollable">';
+	echo '<div class="wrapper">';
+	include_once("pages/modules/admin/header.php");
+	include_once("pages/modules/admin/dashboard.php");
+	echo "</div>";
+	include_once("pages/modules/admin/core.php");
+?>
+	<script>
+	function stopPropagation(e) {
+		  if(!e) var e = window.event;
+		    
+		    if (e.stopPropagation) {
+		        e.stopPropagation();
+		    } else {
+		       e.cancelBubble = true;
+		       e.returnValue = false;
+		    }
+	  }
+	$(document).ready(function () {
+		$('#records tbody').bind("click");
+
+		//alert($(this).attr("data-file-ext"));
+
+		var table;
+		//if ( ! $.fn.DataTable.isDataTable( '#records' ) ) {
+		    table =  $('#records').DataTable({
+				dom: 'Bfrtip',
+				buttons: [
+				          {
+				        	  extend: 'csv',
+				        	  filename: function() {
+				        	      var MCO;
+				        	      if (barGraph.eventType) {
+				        	          MCO = $('#main-container');
+				        	      } else {
+					        	      MCO = $('#main-container-sm');
+				        	      }
+				        	      return MCO[0].getAttribute('data-file-name');
+				              },
+				        	  bBomInc: 'false',
+				        	  exportOptions: {
+				        	  columns: [1, 2]
+				          },
+				          //title: ((barGraph.eventType? barGraph.getFileName() : '')),
+				          //init: function(dt, node, config) {
+					          //if ($(this).attr("data-file-name")) {
+				        	  //$(this).attr("data-file-name").on ('change', function() {
+				        	  //$scope.watch($(this).attr("data-file-name"), function() {
+				        	  //config.title = $(this).attr("data-file-name");
+				        	  //})
+					          //}
+				          //}
+				          },
+				          ],
+				          "paging": true,
+				          "lengthChange": true,
+				          "searching": true,
+				          "ordering": true,
+				          "info": true,
+				          "autoWidth": false
+			});
+		//}
+		    
+		    function format (d) {
+				var extra = (d.length - 1) - populateTable.getLength,
+				table = '<table cellpadding="5" cellspacing="30" border="0" style="position:relative;left:6%;">',
+				rorl = 0;
+				for (var i = 0; i < extra; i++) {
+					rorl = ((i % 2) === 0 || i === 0) ? 'pull-left' : 'pull-right';
+					var paddlr = (rorl === "pull-right" ? 'padding-left: 80px;' : 'padding-right: 80px;');
+					table += (rorl === 'pull-left' ? '<tr>' : '') +'<td style="'+ paddlr +'">'+ d[populateTable.getLength+i+1] +'</td>'+ (rorl ==='pull-right' ? '</tr>' : '');
+				}
+				table += '</table>';
+				return table;
+			}
+			
+			$('#records tbody').off('click').on('click', 'td.details-control', function () {
+				//console.log($(this).contents(), "Radhe");
+				req_served = 0;
+				if (req_served == 0) {
+					var tr = $(this).closest('tr');
+					//console.log(tr, "Krsna");
+					//var row = table.api().row(tr);
+					var row = table.row(tr);
+					if (row.child.isShown()){
+						// This row is already open - close it
+						row.child.hide();
+						tr.removeClass('shown');
+						req_served = 1;
+					}
+					else {
+						// Open this row
+						row.child(format(row.data())).show();
+						tr.addClass('shown');
+						req_served = 1;
+					}
+				}
+		      });
+		
+      	
+	  $(document).on({
+		ajaxStart: function () {
+			$("#testing").addClass("loading");
+		},
+		ajaxStop: function () {
+			$("#testing").removeClass("loading");
+			if (document.getElementById("home_row1")) {
+			if (document.getElementById("home_row1").innerHTML == "No Data"
+				&& document.getElementById("home_row2").innerHTML == "No Data"
+					&& document.getElementById("home_row3").innerHTML == "No Data") {
+				
+				//alert("Nothing to report!!!");
+				$("#home_row1").empty();
+				$("#home_row2").empty();
+				$("#home_row3").empty();
+			} else {
+				if (document.getElementById("home_row1").innerHTML == "No Data") {
+					$("#home_row1").empty();	
+				}
+				if (document.getElementById("home_row2").innerHTML == "No Data") {
+					$("#home_row2").empty();
+				}
+				if (document.getElementById("home_row3").innerHTML == "No Data") {
+					$("#home_row3").empty();
+				}
+			}
+			}
+		},
+		ajaxError: function () {
+			$('#testing').removeClass("loading");
+		}
+	  });
+
+	  $('a.deleteRec').on('click', function(e) {
+		  e.preventDefault();
+		  var id = $(this).closest('tr').data('id');
+		  var row = $(this)[0].parentElement.parentElement;
+		  $('#deleteModal').data({'id': id, 'row': row}).modal('show');
+	  });
+
+	  $('#delete_node').click(function() {
+		  var id = $('#deleteModal').data('id');
+		  var row = $('#deleteModal').data('row');
+		  var arr = id.split(':');
+		  var warnMsg = populateTable.deleteCheckIntegrity(arr[0], arr[1]);
+		  if (!warnMsg) {
+		      populateTable.deleteRow(arr[0], arr[1], row);
+		      $('#deleteModal').modal('hide');
+		  } else {
+		      $('#deleteModal').modal('hide');
+		      var modalId = $('#deleteInfoModal');
+		      var html_msg = '<h4><i class="alert-ico fa fa-fw fa-ban"></i><strong></strong></h4>' + warnMsg;
+		      $('#modalBodyAlertMsg').html(html_msg);
+		      modalId.modal('show');
+		  }
+	  });
+	  
+		    $('#records-event').DataTable({
+		    	 dom:
+						"<'row'<'col-sm-3'l><'col-sm-6'f><'col-sm-3'p>>" +
+						"<'row'<'col-sm-12'tr>>" +
+						"<'row'<'col-sm-5'i>>", 
+			      
+	  "paging": true,
+	//  "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+	  "lengthChange": true,
+	  "searching": true,
+	  "ordering": false,
+	  "info": true,
+	  "autoWidth": false
+	});
+		    $('#eventInfo').DataTable({
+		    	"info": false,
+		  	  "searching":false,
+		  	  "paging":false,
+		  	"lengthChange": false,
+		   	"searching": false,
+		  	  "autoWidth": false,
+		  	"columnDefs": [ {
+		  		"targets": [-1,1,2,3,4,5,6,7],
+		  		"orderable": false
+		  		} ]
+		  	});
+	//  $(document).ready(function() {
+		    $('#speakersList').DataTable({
+			    dom:
+					"<'row'<'col-xs-3'i><'col-xs-3'l><'col-xs-3'f><'col-xs-3'p>>" +
+					"<'row'<'col-xs-12'tr>>" , 
+		      
+      "paging": true,
+   //   "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+      "searching": true,
+      "info": true,
+      "columnDefs": [ {
+    	  "targets": [3,4,5,6],
+    	  "orderable": false
+    	  } ]
+});
+	//	} );
+//	$(document).ready(function() {
+			    $('#sessionsList').DataTable({
+			    	 dom:
+			    		 "<'row'<'col-xs-3'i><'col-xs-3'l><'col-xs-3'f><'col-xs-3'p>>" +
+						 "<'row'<'col-xs-12'tr>>" , 
+				      
+	      "paging": true,
+	      "fixedHeader": {
+	            header: true,
+	            footer: true
+	        },
+	     "scrollY":"250px",
+	    //  "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+	      "lengthChange": true,
+	      "searching": true,
+	      "info": true,
+	      "autoWidth": false,
+	      "order": [[ 1, 'asc' ]],
+	      "columnDefs": [ {
+	    	  "targets": [2,3,4],
+	    	  "orderable": false
+	    	  
+	    	  } ]
+		      
+	      
+	});
+	//} );
+	
+				    $('#beaconsList').DataTable({
+				    	 dom:
+				    		 "<'row'<'col-sm-3'i><'col-sm-3'l><'col-sm-3'f><'col-sm-3'p>>" +
+								"<'row'<'col-sm-12'tr>>" , 
+					      
+		      "paging": true,
+		    //  "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+		      "lengthChange": true,
+		      "searching": true,
+		      "ordering": true,
+		      "info": true,
+		      "autoWidth": false,
+		      "columnDefs": [ {
+		    	  "targets": [2,3],
+		    	  "orderable": false
+		    	  
+		    	  } ]
+			
+		});
+	
+					    $('#triggeredContentList').DataTable({
+					    	 dom:
+					    		 "<'row'<'col-sm-3'i><'col-sm-3'l><'col-sm-3'f><'col-sm-3'p>>" +
+									"<'row'<'col-sm-12'tr>>" , 
+						      
+			      "paging": true,
+			   //   "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+			      "lengthChange": true,
+			      "searching": true,
+			      "ordering": true,
+			      "info": true,
+			      "autoWidth": false,
+			      "columnDefs": [ {
+			    	  "targets": [3,4,5,6],
+			    	  "orderable": false
+			    	  
+			    	  } ]
+				
+			});
+
+		    
+	    $('#surveysList').DataTable({
+	    	 dom:
+	    		 "<'row'<'col-sm-3'i><'col-sm-3'l><'col-sm-3'f><'col-sm-3'p>>" +
+					"<'row'<'col-sm-12'tr>>" , 
+		      
+  "paging": true,
+//  "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+  "lengthChange": true,
+  "searching": true,
+  "ordering": true,
+  "info": true,
+  "autoWidth": false,
+  "columnDefs": [ {
+	  "targets": [2,1],
+	  "orderable": false
+	  
+	  } ]
+
+});
+
+	    $('#exhibitorsList').DataTable({
+	    	 dom:
+	    		 "<'row'<'col-sm-3'i><'col-sm-3'l><'col-sm-3'f><'col-sm-3'p>>" +
+					"<'row'<'col-sm-12'tr>>" ,
+		      
+  "paging": true,
+ // "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+  "lengthChange": true,
+  "searching": true,
+  "ordering": true,
+  "info": true,
+  "autoWidth": false,
+  "columnDefs": [ {
+	  "targets": [2,3,4],
+	  "orderable": false
+	  
+	  } ]
+
+});
+
+	    $('#sponsorsList').DataTable({
+	    	 dom:
+	    		 "<'row'<'col-sm-3'i><'col-sm-3'l><'col-sm-3'f><'col-sm-3'p>>" +
+					"<'row'<'col-sm-12'tr>>" , 
+		      
+  "paging": true,
+ // "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+  "lengthChange": true,
+  "searching": true,
+  "ordering": true,
+  "info": true,
+  "autoWidth": false,
+  "columnDefs": [ {
+	  "targets": [2,3,4],
+	  "orderable": false
+	  
+	  } ]
+
+	    });
+
+	    $('#contentsList').DataTable({
+	    	 dom:
+	    		 "<'row'<'col-sm-3'i><'col-sm-3'l><'col-sm-3'f><'col-sm-3'p>>" +
+					"<'row'<'col-sm-12'tr>>" ,
+		      
+  "paging": true,
+ // "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+  "lengthChange": true,
+  "searching": true,
+  "ordering": true,
+  "info": true,
+  "autoWidth": false,
+  "columnDefs": [ {
+	  "targets": [1,2,3,4],
+	  "orderable": false
+	  
+	  } ]
+
+});
+
+	// to remove tooltip of dropdowns in Edit 
+	
+ //if (document.getElementById("session_speaker")) {
+/* $(function () {	
+	$('#session_speaker').multiselect({
+    nonSelectedText: 'Select Speaker',
+    numberDisplayed: 2,
+    buttonClass: 'btn btn-default',
+    buttonWidth: '100%',
+    includeSelectAllOption: true,
+    allSelectedText:'All',              
+    selectAllValue: 0,
+    selectAllNumber: false,
+    maxHeight: 100,
+    onDropdownHidden: function(event) {
+         // to remove the title when dropdown is hidden so we can remove the title generated by the plugin
+         $('button[class="multiselect dropdown-toggle btn btn-default"]').removeAttr("title"); 
+    }
+});
+ });
+ */
+
+ function expandTextarea(id) {
+	    var $element = $('.form-control-class').get(0);  
+	    if($element){
+	    $element.addEventListener('keyup', function() {
+	        this.style.overflow = 'hidden';
+	        this.style.height = 0;
+
+	        this.style.height = this.scrollHeight + 'px';
+	    }, false);
+	}}
+
+	expandTextarea('speaker_bio');
+
+	$('#beacon_type').bind('change', function() {
+		    var elements = $('div.beacon_container').children().hide(); // hide all the elements
+		    var value = $(this).val();
+
+		    if (value) {
+		    if (value.length) { // if somethings' selected
+		        elements.filter('.' + value).show(); // show the ones we want
+		    }
+		    }
+	  }).trigger('change');
+
+	  //alert($('.nav-tabs .active').text());
+
+	 //$(function(){
+  //var hash = window.location.hash;
+  //alert(hash);
+  //hash && $('ul.nav a[href="' + hash + '"]').tab('show');
+
+  //$('.nav-tabs a').click(function (e) {
+    //$(this).tab('show');
+    //var scrollmem = $('body').scrollTop() || $('html').scrollTop();
+    //window.location.hash = this.hash;
+    //$('html,body').scrollTop(scrollmem);
+  //});
+//});
+	  
+	 $('a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
+         //e.preventDefault();
+         //e.stopPropagation();
+
+         var $active_tab = $('.nav-tabs .active').text().trim();
+   	     //alert($active_tab);
+         if ($active_tab != 'Event Info') {
+		      $('#addButton').show();
+	      } else {
+		      if ($active_tab == 'Event Info') {
+		    	  $('#addButton').hide();
+		      }
+	      }
+
+         var query_cancelBtn = $('#cancelButton');
+         var query_addBtn = $('#addButton');
+
+         if (query_cancelBtn.is(':visible')) {
+             if (query_addBtn.is(':visible')) {
+            	 $('#addButton').hide();    
+             }
+         }
+         
+         //if (document.getElementById("cancelButton")) {
+   		  //if (document.getElementById("addButton")) {
+   			  //$('#addButton').hide();
+   		  //}
+   	  //}
+         
+         
+         //$(this).parents('li').hide();
+     });
+	  
+	  if (document.getElementById("actab")) {
+
+		  //Then this is event list add, change style property
+		  document.getElementById("dashboardDiv").classList.remove("dashboard");
+		  document.getElementById("dashboardDiv").classList.add("editlistdashboard");
+		  	  
+	      var act_tab = document.getElementById("actab").value;
+	 
+	      //alert(act_tab);
+	      if (act_tab != '') {
+		      $('#addButton').hide();
+	      } else {
+	    	  var $active_tab = $('.nav-tabs .active').text().trim();
+	    	  //alert($active_tab);
+	          if ($active_tab == 'Event Info') {
+	 		      $('#addButton').hide();
+	 	      } else {
+		          $('#addButton').show();
+	 	      }
+	      }
+
+	      //var $active_tab = $('.nav-tabs .active').text().trim();
+
+	      //if ($active_tab == 'Event Info') {
+		    //  $('#addButton').hide();
+	      //}
+	  }
+		
+      $(".view_chosen").on("click", function (event) {
+          event.preventDefault();    
+      });
+      
+      //$("div.panel-body table").delegate('tr', 'click', function() {
+      //$("#records-event tbody").delegate('tr', 'click', function() {
+      $("#records-event tbody tr").on('click', function() {
+          //$("div.panel-body table tr").removeClass("highlight");
+          $("#records-event tbody tr").removeClass("highlight");
+    	  var selected = $(this).hasClass("highlight");
+    	  //var noData = "No Data";
+    	  var noData1 = "Nothing to report!!!The event has not started yet.";
+    	  var noData2 = " ";
+    	  var noData3 = " ";
+    	  
+    	  
+    	  if (!selected) {
+        	  $(this).addClass("highlight");
+    	  }
+          //if ($(this).attr('data-event') !== undefined) {
+              //alert($_GET['page']);
+              //alert($_GET['event']);
+              $("#home_row1").empty();
+              $("#home_row2").empty();
+              $("#home_row3").empty();
+              //alert($(this).attr('data-event'));
+             // populateTable.getActivity($(this).attr('data-event'));
+              $.ajax({
+      			type: 'POST',
+      			url: "/pages/modules/admin/home_row1.php",
+      			data: {id : $(this).attr('data-event')},
+      			timeout: 30000,
+      			success: function (data) {
+     				//console.log(data.text);
+      				//alert(data.text);
+      				if (data != " " && data != '') {
+      					document.getElementById("home_row1").innerHTML += data;    
+      				} else {
+      					document.getElementById("home_row1").innerHTML = noData1;
+      				}
+      				 
+      			},
+      			error: function(request, status, err) {
+      				if(status == 'timeout') {
+      					alert('Ajax took too long');
+      				} else {
+      					console.log(err.getMessage());
+      				}
+      			}
+      		});
+            $.ajax({
+        	  type: 'POST',
+        	  url: "/pages/modules/admin/home_row2.php",
+        	  data: {id : $(this).attr('data-event')},
+        	  timeout: 30000,
+        	  success: function (data) {
+        	  //console.log(data.text);
+        	  //alert(data.text);
+        	      if (data != " " && data != '') {
+        		      document.getElementById("home_row2").innerHTML += data;
+        	      } else {
+        	    	  document.getElementById("home_row2").innerHTML = noData2;
+            	      //if (document.getElementById("home_row1").innerHTML === '') {
+                	      //if ($.active == 0) {
+                	          //alert($.active);
+                	         
+                	    //      alert("Nothing to report!!!");
+                	      //    alert($.active);
+                	      //}
+            	      //}
+        	      }
+        	   
+        	  },
+        	  error: function(request, status, error) {
+        	      if(status == 'timeout') {
+        	          alert('Ajax took too long');
+        	      } else {
+        	    	  //var err = eval('(' + request.responseText + ')');
+        	    	  alert(request.responseText);
+        	          //console.log(err.getMessage());
+        	      }
+        	  }
+        	});
+            $.ajax({
+      			type: 'POST',
+      			url: "/pages/modules/admin/home_row3.php",
+      			data: {id : $(this).attr('data-event')},
+      			timeout: 30000,
+      			success: function (data) {
+     				//console.log(data.text);
+      				//alert(data.text);
+      				if (data != " " && data != '') {
+      					document.getElementById("home_row3").innerHTML += data;    
+      				} else {
+      					document.getElementById("home_row3").innerHTML = noData3;
+      				}
+      				 
+      			},
+      			error: function(request, status, err) {
+      				if(status == 'timeout') {
+      					alert('Ajax took too long');
+      				} else {
+      					console.log(err.getMessage());
+      				}
+      			}
+      		});
+            
+                	
+          //}
+      });
+	   $(function() {
+	    $("#sortable").sortable({
+	        stop: function() {
+	           var order = $("#sortable").sortable("serialize", {key:'position[]'});
+	           $inputs = $(".hidden_position");
+	           for (var i = 0; i < $inputs.length; i++) {
+	           	$inputs[i].setAttribute("name", order.split('position[]=')[i+1]);
+	           }
+	        }
+   		 });
+	    if($('.logo_ex')[0] !== undefined && $(".logo_ex")[0].value > 0) $('.file-caption-name')[0].innerHTML = ($(".logo_ex")[0].value);
+	   	});
+	 	$('.table_pick > tbody > tr').on('click', function (event) {
+	 		if ($(this).attr('data-href') !== undefined)
+	    		document.location = '' + $(this).attr('data-href');
+	 	});
+	 	//$('.date_pick').datetimepicker({minDate: new Date()});
+	 	$.datetimepicker.setLocale('en');
+	 	$('.date_pick').datetimepicker({
+	 		//pickerPosition: "top-left" ,
+	 		widgetPositioning: {
+                        horizontal: 'left',
+                        vertical: 'bottom'
+                    },
+	 		
+	 		dayOfWeekStart : 1,
+		 	lang: 'en',
+		 	disabledDates:['1986/01/08','1986/01/09','1986/01/10'],
+		 	//startDate:      '1986/01/05',
+		 	step: 15
+	 	});
+		$(".logo_ex").fileinput({'showUpload':false, 'previewFileType':'any', 'showPreview' : false});
+		$(".edit_direct").on("click", function (event) {
+			document.location = '/Organizer' + $(this).attr('data-href');
+		});
+		$(function() {
+		    $(document).tooltip();
+				$(".download_btn").on("click", function (event) {
+					//alert($(this).val());
+					downloadable.graph(barGraph.eventType ? barGraph.eventType : smallBarGraph.eventType, $(this).val());
+				});
+		});
+		
+		<?php
+		    $new_evt = 0;
+		    $edit_event = 0;
+		    
+		   
+		    if (isset($_GET['action']) && ($_GET['action'] == 'new_event' || $_GET['action'] == 'new_speaker'
+		            || $_GET['action'] == 'new_session' || $_GET['action'] == 'new_exhibitor'
+		            || $_GET['action'] == 'new_sponsor' || $_GET['action'] == 'new_beacon'
+		            || $_GET['action'] == 'new_notification' || $_GET['action'] == 'new_content')) {
+		        $new_evt = 1;	
+		    }
+		    $get_action = $_GET['action'];
+		    //echo "alert('$get_action');"; 
+		    $get_specific = $_GET['specific'];
+		    //echo "alert('$get_specific');";
+		    
+		    if ($get_action) {
+		    	//edit event and $get_action contains event code
+		    	$edit_event = 1;
+		    }
+		    
+			if (isset($_GET['specific']) && $parseAPI->isBeacon($_GET['specific'])) {
+				//echo $_GET['specific'];
+				echo "$(function() {
+			 		tableFill.selectFill('organizer_hourly', ". $info['beacon_graph'] .");
+			 	});";
+			} else if((!isset($_GET['page']) && count($info) > 0) || $_GET['action'] == 'analytics' && $_GET['specific'] != 'Speakers' && $_GET['specific'] != 'Notifications' && $_GET['specific'] != 'Sesssions') {
+				//console.log($_GET['page']);
+				//console.log($_SESSION['eventId']);
+				echo "$(function() {
+			 		tableFill.selectFill('organizer', ". $info['beacon_graph'] .");
+			 	});";
+			} else if ($_GET['specific'] == 'Sessions') {
+				echo "$(function() {
+				    tableFill.selectFill('organizer_session', ". $info['beacon_graph'] .");
+				});";
+			} 
+			else if($_GET['specific'] == 'Speakers') {
+				//echo $_GET['specific'];
+				echo "$(function() {
+			 		tableFill.selectFill('organizer_speakers', ". $info['beacon_graph'] .");
+			 	});";
+			}?>
+			
+		});
+		
+		  // with plugin options
+		  $("#event_logo").fileinput({'showUpload':false});
+		 // $('#beacon_exhibitor').tooltip('hide');
+		  $('#beacon_exhibitor').select({
+			  buttonTitle: function() {},
+			  });
+	</script>
+	<?php include_once("pages/modules/admin/js_loads.php"); ?>
+</body>
+</html>
+||||||| .r433
+<?php
+	ini_set("display_errors", 'on');
+	include_once("pages/modules/config.php");
+	include_once("pages/modules/admin/mainhead.php");
+	$pageTitle = "BEEP CMS & Attendee Analytics | Beantown Beacons";
+	include_once('head.php');
+	echo '<body class="framed main-scrollable">';
+	echo '<div class="wrapper">';
+	include_once("pages/modules/admin/header.php");
+	include_once("pages/modules/admin/dashboard.php");
+	echo "</div>";
+	include_once("pages/modules/admin/core.php");
+?>
+	<script>
+	function stopPropagation(e) {
+		  if(!e) var e = window.event;
+		    
+		    if (e.stopPropagation) {
+		        e.stopPropagation();
+		    } else {
+		       e.cancelBubble = true;
+		       e.returnValue = false;
+		    }
+	  }
+	$(document).ready(function () {
+		$('#records tbody').bind("click");
+
+		//alert($(this).attr("data-file-ext"));
+
+		var table;
+		//if ( ! $.fn.DataTable.isDataTable( '#records' ) ) {
+		    table =  $('#records').DataTable({
+				dom: 'Bfrtip',
+				buttons: [
+				          {
+				        	  extend: 'csv',
+				        	  filename: function() {
+				        	      var MCO;
+				        	      if (barGraph.eventType) {
+				        	          MCO = $('#main-container');
+				        	      } else {
+					        	      MCO = $('#main-container-sm');
+				        	      }
+				        	      return MCO[0].getAttribute('data-file-name');
+				              },
+				        	  bBomInc: 'false',
+				        	  exportOptions: {
+				        	  columns: [1, 2]
+				          },
+				          //title: ((barGraph.eventType? barGraph.getFileName() : '')),
+				          //init: function(dt, node, config) {
+					          //if ($(this).attr("data-file-name")) {
+				        	  //$(this).attr("data-file-name").on ('change', function() {
+				        	  //$scope.watch($(this).attr("data-file-name"), function() {
+				        	  //config.title = $(this).attr("data-file-name");
+				        	  //})
+					          //}
+				          //}
+				          },
+				          ],
+				          "paging": true,
+				          "lengthChange": true,
+				          "searching": true,
+				          "ordering": true,
+				          "info": true,
+				          "autoWidth": false
+			});
+		//}
+		    
+		    function format (d) {
+				var extra = (d.length - 1) - populateTable.getLength,
+				table = '<table cellpadding="5" cellspacing="30" border="0" style="position:relative;left:6%;">',
+				rorl = 0;
+				for (var i = 0; i < extra; i++) {
+					rorl = ((i % 2) === 0 || i === 0) ? 'pull-left' : 'pull-right';
+					var paddlr = (rorl === "pull-right" ? 'padding-left: 80px;' : 'padding-right: 80px;');
+					table += (rorl === 'pull-left' ? '<tr>' : '') +'<td style="'+ paddlr +'">'+ d[populateTable.getLength+i+1] +'</td>'+ (rorl ==='pull-right' ? '</tr>' : '');
+				}
+				table += '</table>';
+				return table;
+			}
+			
+			$('#records tbody').off('click').on('click', 'td.details-control', function () {
+				//console.log($(this).contents(), "Radhe");
+				req_served = 0;
+				if (req_served == 0) {
+					var tr = $(this).closest('tr');
+					//console.log(tr, "Krsna");
+					//var row = table.api().row(tr);
+					var row = table.row(tr);
+					if (row.child.isShown()){
+						// This row is already open - close it
+						row.child.hide();
+						tr.removeClass('shown');
+						req_served = 1;
+					}
+					else {
+						// Open this row
+						row.child(format(row.data())).show();
+						tr.addClass('shown');
+						req_served = 1;
+					}
+				}
+		      });
+		
+      	
+	  $(document).on({
+		ajaxStart: function () {
+			$("#testing").addClass("loading");
+		},
+		ajaxStop: function () {
+			$("#testing").removeClass("loading");
+			if (document.getElementById("home_row1")) {
+			if (document.getElementById("home_row1").innerHTML == "No Data"
+				&& document.getElementById("home_row2").innerHTML == "No Data") {
+				
+				alert("Nothing to report!!!");
+				$("#home_row1").empty();
+				$("#home_row2").empty();
+			} else {
+				if (document.getElementById("home_row1").innerHTML == "No Data") {
+					$("#home_row1").empty();	
+				}
+				if (document.getElementById("home_row2").innerHTML == "No Data") {
+					$("#home_row2").empty();
+				}
+			}
+			}
+		},
+		ajaxError: function () {
+			$('#testing').removeClass("loading");
+		}
+	  });
+
+	  $('a.deleteRec').on('click', function(e) {
+		  e.preventDefault();
+		  var id = $(this).closest('tr').data('id');
+		  var row = $(this)[0].parentElement.parentElement;
+		  $('#deleteModal').data({'id': id, 'row': row}).modal('show');
+	  });
+
+	  $('#delete_node').click(function() {
+		  var id = $('#deleteModal').data('id');
+		  var row = $('#deleteModal').data('row');
+		  var arr = id.split(':');
+		  var warnMsg = populateTable.deleteCheckIntegrity(arr[0], arr[1]);
+		  if (!warnMsg) {
+		      populateTable.deleteRow(arr[0], arr[1], row);
+		      $('#deleteModal').modal('hide');
+		  } else {
+		      $('#deleteModal').modal('hide');
+		      var modalId = $('#deleteInfoModal');
+		      var html_msg = '<h4><i class="alert-ico fa fa-fw fa-ban"></i><strong></strong></h4>' + warnMsg;
+		      $('#modalBodyAlertMsg').html(html_msg);
+		      modalId.modal('show');
+		  }
+	  });
+	  
+		    $('#eventList').DataTable({
+		    	 dom:
+						"<'row'<'col-sm-3'l><'col-sm-6'f><'col-sm-3'p>>" +
+						"<'row'<'col-sm-12'tr>>" +
+						"<'row'<'col-sm-5'i>>", 
+			      
+	  "paging": true,
+	//  "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+	  "lengthChange": true,
+	  "searching": true,
+	  "ordering": false,
+	  "info": true,
+	  "autoWidth": false
+	});
+		    $('#eventInfo').DataTable({
+		    	"info": false,
+		  	  "searching":false,
+		  	  "paging":false,
+		  	"lengthChange": false,
+		   	"searching": false,
+		  	  "autoWidth": false,
+		  	"columnDefs": [ {
+		  		"targets": [-1,1,2,3,4,5,6,7],
+		  		"orderable": false
+		  		} ]
+		  	});
+	//  $(document).ready(function() {
+		    $('#speakersList').DataTable({
+			    dom:
+					"<'row'<'col-sm-3'l><'col-sm-6'f><'col-sm-3'p>>" +
+					"<'row'<'col-sm-12'tr>>" +
+					"<'row'<'col-sm-5'i>>", 
+		      
+      "paging": true,
+   //   "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+      "searching": true,
+      "info": true,
+      "columnDefs": [ {
+    	  "targets": [3,4,5,6],
+    	  "orderable": false
+    	  } ]
+});
+	//	} );
+//	$(document).ready(function() {
+			    $('#sessionsList').DataTable({
+			    	 dom:
+							"<'row'<'col-sm-3'l><'col-sm-6'f><'col-sm-3'p>>" +
+							"<'row'<'col-sm-12'tr>>" +
+							"<'row'<'col-sm-5'i>>", 
+				      
+	      "paging": true,
+	    //  "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+	      "lengthChange": true,
+	      "searching": true,
+	      "info": true,
+	      "autoWidth": false,
+	      "order": [[ 1, 'asc' ]],
+	      "columnDefs": [ {
+	    	  "targets": [2,3,4],
+	    	  "orderable": false
+	    	  
+	    	  } ]
+		      
+	      
+	});
+	//} );
+	
+				    $('#beaconsList').DataTable({
+				    	 dom:
+								"<'row'<'col-sm-3'l><'col-sm-6'f><'col-sm-3'p>>" +
+								"<'row'<'col-sm-12'tr>>" +
+								"<'row'<'col-sm-5'i>>", 
+					      
+		      "paging": true,
+		    //  "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+		      "lengthChange": true,
+		      "searching": true,
+		      "ordering": true,
+		      "info": true,
+		      "autoWidth": false,
+		      "columnDefs": [ {
+		    	  "targets": [2,3],
+		    	  "orderable": false
+		    	  
+		    	  } ]
+			
+		});
+	
+					    $('#triggeredContentList').DataTable({
+					    	 dom:
+									"<'row'<'col-sm-3'l><'col-sm-6'f><'col-sm-3'p>>" +
+									"<'row'<'col-sm-12'tr>>" +
+									"<'row'<'col-sm-5'i>>", 
+						      
+			      "paging": true,
+			   //   "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+			      "lengthChange": true,
+			      "searching": true,
+			      "ordering": true,
+			      "info": true,
+			      "autoWidth": false,
+			      "columnDefs": [ {
+			    	  "targets": [3,4,5,6],
+			    	  "orderable": false
+			    	  
+			    	  } ]
+				
+			});
+
+		    
+	    $('#surveysList').DataTable({
+	    	 dom:
+					"<'row'<'col-sm-3'l><'col-sm-6'f><'col-sm-3'p>>" +
+					"<'row'<'col-sm-12'tr>>" +
+					"<'row'<'col-sm-5'i>>", 
+		      
+  "paging": true,
+//  "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+  "lengthChange": true,
+  "searching": true,
+  "ordering": true,
+  "info": true,
+  "autoWidth": false,
+  "columnDefs": [ {
+	  "targets": [2,1],
+	  "orderable": false
+	  
+	  } ]
+
+});
+
+	    $('#exhibitorsList').DataTable({
+	    	 dom:
+					"<'row'<'col-sm-3'l><'col-sm-6'f><'col-sm-3'p>>" +
+					"<'row'<'col-sm-12'tr>>" +
+					"<'row'<'col-sm-5'i>>", 
+		      
+  "paging": true,
+ // "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+  "lengthChange": true,
+  "searching": true,
+  "ordering": true,
+  "info": true,
+  "autoWidth": false,
+  "columnDefs": [ {
+	  "targets": [2,3,4],
+	  "orderable": false
+	  
+	  } ]
+
+});
+
+	    $('#sponsorsList').DataTable({
+	    	 dom:
+					"<'row'<'col-sm-3'l><'col-sm-6'f><'col-sm-3'p>>" +
+					"<'row'<'col-sm-12'tr>>" +
+					"<'row'<'col-sm-5'i>>", 
+		      
+  "paging": true,
+ // "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+  "lengthChange": true,
+  "searching": true,
+  "ordering": true,
+  "info": true,
+  "autoWidth": false,
+  "columnDefs": [ {
+	  "targets": [2,3,4],
+	  "orderable": false
+	  
+	  } ]
+
+	    });
+
+	    $('#contentsList').DataTable({
+	    	 dom:
+					"<'row'<'col-sm-3'l><'col-sm-6'f><'col-sm-3'p>>" +
+					"<'row'<'col-sm-12'tr>>" +
+					"<'row'<'col-sm-5'i>>", 
+		      
+  "paging": true,
+ // "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+  "lengthChange": true,
+  "searching": true,
+  "ordering": true,
+  "info": true,
+  "autoWidth": false,
+  "columnDefs": [ {
+	  "targets": [1,2,3,4],
+	  "orderable": false
+	  
+	  } ]
+
+});
+
+	// to remove tooltip of dropdowns in Edit 
+	
+ //if (document.getElementById("session_speaker")) {
+/* $(function () {	
+	$('#session_speaker').multiselect({
+    nonSelectedText: 'Select Speaker',
+    numberDisplayed: 2,
+    buttonClass: 'btn btn-default',
+    buttonWidth: '100%',
+    includeSelectAllOption: true,
+    allSelectedText:'All',              
+    selectAllValue: 0,
+    selectAllNumber: false,
+    maxHeight: 100,
+    onDropdownHidden: function(event) {
+         // to remove the title when dropdown is hidden so we can remove the title generated by the plugin
+         $('button[class="multiselect dropdown-toggle btn btn-default"]').removeAttr("title"); 
+    }
+});
+ });
+ */
+
+ function expandTextarea(id) {
+	    var $element = $('.form-control-class').get(0);  
+	    if($element){
+	    $element.addEventListener('keyup', function() {
+	        this.style.overflow = 'hidden';
+	        this.style.height = 0;
+
+	        this.style.height = this.scrollHeight + 'px';
+	    }, false);
+	}}
+
+	expandTextarea('speaker_bio');
+
+	$('#beacon_type').bind('change', function() {
+		    var elements = $('div.beacon_container').children().hide(); // hide all the elements
+		    var value = $(this).val();
+
+		    if (value) {
+		    if (value.length) { // if somethings' selected
+		        elements.filter('.' + value).show(); // show the ones we want
+		    }
+		    }
+	  }).trigger('change');
+
+	  //alert($('.nav-tabs .active').text());
+
+	 //$(function(){
+  //var hash = window.location.hash;
+  //alert(hash);
+  //hash && $('ul.nav a[href="' + hash + '"]').tab('show');
+
+  //$('.nav-tabs a').click(function (e) {
+    //$(this).tab('show');
+    //var scrollmem = $('body').scrollTop() || $('html').scrollTop();
+    //window.location.hash = this.hash;
+    //$('html,body').scrollTop(scrollmem);
+  //});
+//});
+	  
+	 $('a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
+         //e.preventDefault();
+         //e.stopPropagation();
+
+         var $active_tab = $('.nav-tabs .active').text().trim();
+   	     //alert($active_tab);
+         if ($active_tab != 'Event Info') {
+		      $('#addButton').show();
+	      } else {
+		      if ($active_tab == 'Event Info') {
+		    	  $('#addButton').hide();
+		      }
+	      }
+
+         var query_cancelBtn = $('#cancelButton');
+         var query_addBtn = $('#addButton');
+
+         if (query_cancelBtn.is(':visible')) {
+             if (query_addBtn.is(':visible')) {
+            	 $('#addButton').hide();    
+             }
+         }
+         
+         //if (document.getElementById("cancelButton")) {
+   		  //if (document.getElementById("addButton")) {
+   			  //$('#addButton').hide();
+   		  //}
+   	  //}
+         
+         
+         //$(this).parents('li').hide();
+     });
+	  
+	  if (document.getElementById("actab")) {	  
+	      var act_tab = document.getElementById("actab").value;
+	 
+	      //alert(act_tab);
+	      if (act_tab != '') {
+		      $('#addButton').hide();
+	      } else {
+	    	  var $active_tab = $('.nav-tabs .active').text().trim();
+	    	  //alert($active_tab);
+	          if ($active_tab == 'Event Info') {
+	 		      $('#addButton').hide();
+	 	      } else {
+		          $('#addButton').show();
+	 	      }
+	      }
+
+	      //var $active_tab = $('.nav-tabs .active').text().trim();
+
+	      //if ($active_tab == 'Event Info') {
+		    //  $('#addButton').hide();
+	      //}
+	  }
+		
+      $(".view_chosen").on("click", function (event) {
+          event.preventDefault();    
+      });
+      
+      //$("div.panel-body table").delegate('tr', 'click', function() {
+      //$("#records-event tbody").delegate('tr', 'click', function() {
+      $("#records-event tbody tr").on('click', function() {
+          //$("div.panel-body table tr").removeClass("highlight");
+          $("#records-event tbody tr").removeClass("highlight");
+    	  var selected = $(this).hasClass("highlight");
+    	  var noData = "No Data";
+    	  
+    	  if (!selected) {
+        	  $(this).addClass("highlight");
+    	  }
+          //if ($(this).attr('data-event') !== undefined) {
+              //alert($_GET['page']);
+              //alert($_GET['event']);
+              $("#home_row1").empty();
+              $("#home_row2").empty();
+              //alert($(this).attr('data-event'));
+             // populateTable.getActivity($(this).attr('data-event'));
+              $.ajax({
+      			type: 'POST',
+      			url: "/pages/modules/admin/home_row1.php",
+      			data: {id : $(this).attr('data-event')},
+      			timeout: 30000,
+      			success: function (data) {
+     				//console.log(data.text);
+      				//alert(data.text);
+      				if (data != " " && data != '') {
+      					document.getElementById("home_row1").innerHTML += data;    
+      				} else {
+      					document.getElementById("home_row1").innerHTML = noData;
+      				}
+      				 
+      			},
+      			error: function(request, status, err) {
+      				if(status == 'timeout') {
+      					alert('Ajax took too long');
+      				} else {
+      					console.log(err.getMessage());
+      				}
+      			}
+      		});
+            $.ajax({
+        	  type: 'POST',
+        	  url: "/pages/modules/admin/home_row2.php",
+        	  data: {id : $(this).attr('data-event')},
+        	  timeout: 30000,
+        	  success: function (data) {
+        	  //console.log(data.text);
+        	  //alert(data.text);
+        	      if (data != " " && data != '') {
+        		      document.getElementById("home_row2").innerHTML += data;
+        	      } else {
+        	    	  document.getElementById("home_row2").innerHTML = noData;
+            	      //if (document.getElementById("home_row1").innerHTML === '') {
+                	      //if ($.active == 0) {
+                	          //alert($.active);
+                	         
+                	    //      alert("Nothing to report!!!");
+                	      //    alert($.active);
+                	      //}
+            	      //}
+        	      }
+        	   
+        	  },
+        	  error: function(request, status, error) {
+        	      if(status == 'timeout') {
+        	          alert('Ajax took too long');
+        	      } else {
+        	    	  //var err = eval('(' + request.responseText + ')');
+        	    	  alert(request.responseText);
+        	          //console.log(err.getMessage());
+        	      }
+        	  }
+        	});
+                	
+          //}
+      });
+	   $(function() {
+	    $("#sortable").sortable({
+	        stop: function() {
+	           var order = $("#sortable").sortable("serialize", {key:'position[]'});
+	           $inputs = $(".hidden_position");
+	           for (var i = 0; i < $inputs.length; i++) {
+	           	$inputs[i].setAttribute("name", order.split('position[]=')[i+1]);
+	           }
+	        }
+   		 });
+	    if($('.logo_ex')[0] !== undefined && $(".logo_ex")[0].value > 0) $('.file-caption-name')[0].innerHTML = ($(".logo_ex")[0].value);
+	   	});
+	 	$('.table_pick > tbody > tr').on('click', function (event) {
+	 		if ($(this).attr('data-href') !== undefined)
+	    		document.location = '' + $(this).attr('data-href');
+	 	});
+	 	//$('.date_pick').datetimepicker({minDate: new Date()});
+	 	$.datetimepicker.setLocale('en');
+	 	$('.date_pick').datetimepicker({
+	 		//pickerPosition: "top-left" ,
+	 		widgetPositioning: {
+                        horizontal: 'left',
+                        vertical: 'bottom'
+                    },
+	 		
+	 		dayOfWeekStart : 1,
+		 	lang: 'en',
+		 	disabledDates:['1986/01/08','1986/01/09','1986/01/10'],
+		 	//startDate:      '1986/01/05',
+		 	step: 15
+	 	});
+		$(".logo_ex").fileinput({'showUpload':false, 'previewFileType':'any', 'showPreview' : false});
+		$(".edit_direct").on("click", function (event) {
+			document.location = '/Organizer' + $(this).attr('data-href');
+		});
+		$(function() {
+		    $(document).tooltip();
+				$(".download_btn").on("click", function (event) {
+					//alert($(this).val());
+					downloadable.graph(barGraph.eventType ? barGraph.eventType : smallBarGraph.eventType, $(this).val());
+				});
+		});
+		
+		<?php
+		    $new_evt = 0;
+		    $edit_event = 0;
+		    
+		   
+		    if (isset($_GET['action']) && ($_GET['action'] == 'new_event' || $_GET['action'] == 'new_speaker'
+		            || $_GET['action'] == 'new_session' || $_GET['action'] == 'new_exhibitor'
+		            || $_GET['action'] == 'new_sponsor' || $_GET['action'] == 'new_beacon'
+		            || $_GET['action'] == 'new_notification' || $_GET['action'] == 'new_content')) {
+		        $new_evt = 1;	
+		    }
+		    $get_action = $_GET['action'];
+		    //echo "alert('$get_action');"; 
+		    $get_specific = $_GET['specific'];
+		    //echo "alert('$get_specific');";
+		    
+		    if ($get_action) {
+		    	//edit event and $get_action contains event code
+		    	$edit_event = 1;
+		    }
+		    
+			if (isset($_GET['specific']) && $parseAPI->isBeacon($_GET['specific'])) {
+				//echo $_GET['specific'];
+				echo "$(function() {
+			 		tableFill.selectFill('organizer_hourly', ". $info['beacon_graph'] .");
+			 	});";
+			} else if((!isset($_GET['page']) && count($info) > 0) || $_GET['action'] == 'analytics' && $_GET['specific'] != 'Speakers' && $_GET['specific'] != 'Notifications' && $_GET['specific'] != 'Sesssions') {
+				//console.log($_GET['page']);
+				//console.log($_SESSION['eventId']);
+				echo "$(function() {
+			 		tableFill.selectFill('organizer', ". $info['beacon_graph'] .");
+			 	});";
+			} else if ($_GET['specific'] == 'Sessions') {
+				echo "$(function() {
+				    tableFill.selectFill('organizer_session', ". $info['beacon_graph'] .");
+				});";
+			} 
+			else if($_GET['specific'] == 'Speakers') {
+				//echo $_GET['specific'];
+				echo "$(function() {
+			 		tableFill.selectFill('organizer_speakers', ". $info['beacon_graph'] .");
+			 	});";
+			}?>
+			
+		});
+		
+		  // with plugin options
+		  $("#event_logo").fileinput({'showUpload':false});
+		 // $('#beacon_exhibitor').tooltip('hide');
+		  $('#beacon_exhibitor').select({
+			  buttonTitle: function() {},
+			  });
+	</script>
+	<?php include_once("pages/modules/admin/js_loads.php"); ?>
+</body>
+</html>
+=======
+<?php
+	ini_set("display_errors", 'on');
+	include_once("pages/modules/config.php");
+	include_once("pages/modules/admin/mainhead.php");
+	$pageTitle = "BEEP CMS & Attendee Analytics | Beantown Beacons";
+	include_once('head.php');
+	echo '<body class="framed main-scrollable">';
+	echo '<div class="wrapper">';
+	include_once("pages/modules/admin/header.php");
+	include_once("pages/modules/admin/dashboard.php");
+	echo "</div>";
+	include_once("pages/modules/admin/core.php");
+?>
+	<script>
+	function stopPropagation(e) {
+		  if(!e) var e = window.event;
+		    
+		    if (e.stopPropagation) {
+		        e.stopPropagation();
+		    } else {
+		       e.cancelBubble = true;
+		       e.returnValue = false;
+		    }
+	  }
+	$(document).ready(function () {
+		$('#records tbody').bind("click");
+
+		//alert($(this).attr("data-file-ext"));
+
+		var table;
+		//if ( ! $.fn.DataTable.isDataTable( '#records' ) ) {
+		    table =  $('#records').DataTable({
+				dom: 'Bfrtip',
+				buttons: [
+				          {
+				        	  extend: 'csv',
+				        	  filename: function() {
+				        	      var MCO;
+				        	      if (barGraph.eventType) {
+				        	          MCO = $('#main-container');
+				        	      } else {
+					        	      MCO = $('#main-container-sm');
+				        	      }
+				        	      return MCO[0].getAttribute('data-file-name');
+				              },
+				        	  bBomInc: 'false',
+				        	  exportOptions: {
+				        	  columns: [1, 2]
+				          },
+				          //title: ((barGraph.eventType? barGraph.getFileName() : '')),
+				          //init: function(dt, node, config) {
+					          //if ($(this).attr("data-file-name")) {
+				        	  //$(this).attr("data-file-name").on ('change', function() {
+				        	  //$scope.watch($(this).attr("data-file-name"), function() {
+				        	  //config.title = $(this).attr("data-file-name");
+				        	  //})
+					          //}
+				          //}
+				          },
+				          ],
+				          "paging": true,
+				          "lengthChange": true,
+				          "searching": true,
+				          "ordering": true,
+				          "info": true,
+				          "autoWidth": false
+			});
+		//}
+		    
+		    function format (d) {
+				var extra = (d.length - 1) - populateTable.getLength,
+				table = '<table cellpadding="5" cellspacing="30" border="0" style="position:relative;left:6%;">',
+				rorl = 0;
+				for (var i = 0; i < extra; i++) {
+					rorl = ((i % 2) === 0 || i === 0) ? 'pull-left' : 'pull-right';
+					var paddlr = (rorl === "pull-right" ? 'padding-left: 80px;' : 'padding-right: 80px;');
+					table += (rorl === 'pull-left' ? '<tr>' : '') +'<td style="'+ paddlr +'">'+ d[populateTable.getLength+i+1] +'</td>'+ (rorl ==='pull-right' ? '</tr>' : '');
+				}
+				table += '</table>';
+				return table;
+			}
+			
+			$('#records tbody').off('click').on('click', 'td.details-control', function () {
+				//console.log($(this).contents(), "Radhe");
+				req_served = 0;
+				if (req_served == 0) {
+					var tr = $(this).closest('tr');
+					//console.log(tr, "Krsna");
+					//var row = table.api().row(tr);
+					var row = table.row(tr);
+					if (row.child.isShown()){
+						// This row is already open - close it
+						row.child.hide();
+						tr.removeClass('shown');
+						req_served = 1;
+					}
+					else {
+						// Open this row
+						row.child(format(row.data())).show();
+						tr.addClass('shown');
+						req_served = 1;
+					}
+				}
+		      });
+		
+      	
+	  $(document).on({
+		ajaxStart: function () {
+			$("#testing").addClass("loading");
+		},
+		ajaxStop: function () {
+			$("#testing").removeClass("loading");
+			if (document.getElementById("home_row1")) {
+			if (document.getElementById("home_row1").innerHTML == "No Data"
+				&& document.getElementById("home_row2").innerHTML == "No Data") {
+				
+				alert("Nothing to report!!!");
+				$("#home_row1").empty();
+				$("#home_row2").empty();
+			} else {
+				if (document.getElementById("home_row1").innerHTML == "No Data") {
+					$("#home_row1").empty();	
+				}
+				if (document.getElementById("home_row2").innerHTML == "No Data") {
+					$("#home_row2").empty();
+				}
+			}
+			}
+		},
+		ajaxError: function () {
+			$('#testing').removeClass("loading");
+		}
+	  });
+
+	  $('a.deleteRec').on('click', function(e) {
+		  e.preventDefault();
+		  var id = $(this).closest('tr').data('id');
+		  var row = $(this)[0].parentElement.parentElement;
+		  $('#deleteModal').data({'id': id, 'row': row}).modal('show');
+	  });
+
+	  $('#delete_node').click(function() {
+		  var id = $('#deleteModal').data('id');
+		  var row = $('#deleteModal').data('row');
+		  var arr = id.split(':');
+		  var warnMsg = populateTable.deleteCheckIntegrity(arr[0], arr[1]);
+		  if (!warnMsg) {
+		      populateTable.deleteRow(arr[0], arr[1], row);
+		      $('#deleteModal').modal('hide');
+		  } else {
+		      $('#deleteModal').modal('hide');
+		      var modalId = $('#deleteInfoModal');
+		      var html_msg = '<h4><i class="alert-ico fa fa-fw fa-ban"></i><strong></strong></h4>' + warnMsg;
+		      $('#modalBodyAlertMsg').html(html_msg);
+		      modalId.modal('show');
+		  }
+	  });
+	  
+		    $('#eventList').DataTable({
+		    	 dom:
+						"<'row'<'col-sm-3'l><'col-sm-6'f><'col-sm-3'p>>" +
+						"<'row'<'col-sm-12'tr>>" +
+						"<'row'<'col-sm-5'i>>", 
+			      
+	  "paging": true,
+	//  "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+	  "lengthChange": true,
+	  "searching": true,
+	  "ordering": false,
+	  "info": true,
+	  "autoWidth": false
+	});
+		    $('#eventInfo').DataTable({
+		    	"info": false,
+		  	  "searching":false,
+		  	  "paging":false,
+		  	"lengthChange": false,
+		   	"searching": false,
+		  	  "autoWidth": false,
+		  	"columnDefs": [ {
+		  		"targets": [-1,1,2,3,4,5,6,7],
+		  		"orderable": false
+		  		} ]
+		  	});
+	//  $(document).ready(function() {
+		    $('#speakersList').DataTable({
+			    dom:
+					"<'row'<'col-xs-3'i><'col-xs-6'f><'col-xs-3'p>>" +
+					"<'row'<'col-sm-12'tr>>" , 
+		      
+      "paging": true,
+   //   "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+      "searching": true,
+      "info": true,
+      "columnDefs": [ {
+    	  "targets": [3,4,5,6],
+    	  "orderable": false
+    	  } ]
+});
+	//	} );
+//	$(document).ready(function() {
+			    $('#sessionsList').DataTable({
+			    	dom:
+						"<'row'<'col-xs-3'i><'col-xs-6'f><'col-xs-3'p>>" +
+						"<'row'<'col-sm-12'tr>>" , 
+				      
+	      "paging": true,
+	      //"scrollY":200,
+	     //"scrollCollapse":true,
+	    //  "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+	      "lengthChange": true,
+	      "searching": true,
+	      "info": true,
+	      "autoWidth": false,
+	      "order": [[ 1, 'asc' ]],
+	      "columnDefs": [ {
+	    	  "targets": [2,3,4],
+	    	  "orderable": false
+	    	  
+	    	  } ]
+		      
+	      
+	});
+	//} );
+	
+				    $('#beaconsList').DataTable({
+				    	 dom:
+				    		 "<'row'<'col-sm-3'i><'col-sm-6'f><'col-sm-3'p>>" +
+								"<'row'<'col-sm-12'tr>>" , 
+					      
+		      "paging": true,
+		    //  "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+		      "lengthChange": true,
+		      "searching": true,
+		      "ordering": true,
+		      "info": true,
+		      "autoWidth": false,
+		      "columnDefs": [ {
+		    	  "targets": [2,3],
+		    	  "orderable": false
+		    	  
+		    	  } ]
+			
+		});
+	
+					    $('#triggeredContentList').DataTable({
+					    	 dom:
+					    		 "<'row'<'col-sm-3'i><'col-sm-6'f><'col-sm-3'p>>" +
+									"<'row'<'col-sm-12'tr>>" , 
+						      
+			      "paging": true,
+			   //   "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+			      "lengthChange": true,
+			      "searching": true,
+			      "ordering": true,
+			      "info": true,
+			      "autoWidth": false,
+			      "columnDefs": [ {
+			    	  "targets": [3,4,5,6],
+			    	  "orderable": false
+			    	  
+			    	  } ]
+				
+			});
+
+		    
+	    $('#surveysList').DataTable({
+	    	 dom:
+	    		 "<'row'<'col-sm-3'i><'col-sm-6'f><'col-sm-3'p>>" +
+					"<'row'<'col-sm-12'tr>>" , 
+		      
+  "paging": true,
+//  "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+  "lengthChange": true,
+  "searching": true,
+  "ordering": true,
+  "info": true,
+  "autoWidth": false,
+  "columnDefs": [ {
+	  "targets": [2,1],
+	  "orderable": false
+	  
+	  } ]
+
+});
+
+	    $('#exhibitorsList').DataTable({
+	    	 dom:
+	    		 "<'row'<'col-sm-3'i><'col-sm-6'f><'col-sm-3'p>>" +
+					"<'row'<'col-sm-12'tr>>" ,
+		      
+  "paging": true,
+ // "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+  "lengthChange": true,
+  "searching": true,
+  "ordering": true,
+  "info": true,
+  "autoWidth": false,
+  "columnDefs": [ {
+	  "targets": [2,3,4],
+	  "orderable": false
+	  
+	  } ]
+
+});
+
+	    $('#sponsorsList').DataTable({
+	    	 dom:
+	    		 "<'row'<'col-sm-3'i><'col-sm-6'f><'col-sm-3'p>>" +
+					"<'row'<'col-sm-12'tr>>" , 
+		      
+  "paging": true,
+ // "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+  "lengthChange": true,
+  "searching": true,
+  "ordering": true,
+  "info": true,
+  "autoWidth": false,
+  "columnDefs": [ {
+	  "targets": [2,3,4],
+	  "orderable": false
+	  
+	  } ]
+
+	    });
+
+	    $('#contentsList').DataTable({
+	    	 dom:
+	    		 "<'row'<'col-sm-3'i><'col-sm-6'f><'col-sm-3'p>>" +
+					"<'row'<'col-sm-12'tr>>" ,
+		      
+  "paging": true,
+ // "dom": '<"top"flp<"clear">>rt<"bottom"i<"clear">>',
+  "lengthChange": true,
+  "searching": true,
+  "ordering": true,
+  "info": true,
+  "autoWidth": false,
+  "columnDefs": [ {
+	  "targets": [1,2,3,4],
+	  "orderable": false
+	  
+	  } ]
+
+});
+
+	    jQuery('.dataTable').wrap('<div class="dataTables_scroll" />');
+	    
+	// to remove tooltip of dropdowns in Edit 
+	
+ //if (document.getElementById("session_speaker")) {
+/* $(function () {	
+	$('#session_speaker').multiselect({
+    nonSelectedText: 'Select Speaker',
+    numberDisplayed: 2,
+    buttonClass: 'btn btn-default',
+    buttonWidth: '100%',
+    includeSelectAllOption: true,
+    allSelectedText:'All',              
+    selectAllValue: 0,
+    selectAllNumber: false,
+    maxHeight: 100,
+    onDropdownHidden: function(event) {
+         // to remove the title when dropdown is hidden so we can remove the title generated by the plugin
+         $('button[class="multiselect dropdown-toggle btn btn-default"]').removeAttr("title"); 
+    }
+});
+ });
+ */
+
+ function expandTextarea(id) {
+	    var $element = $('.form-control-class').get(0);  
+	    if($element){
+	    $element.addEventListener('keyup', function() {
+	        this.style.overflow = 'hidden';
+	        this.style.height = 0;
+
+	        this.style.height = this.scrollHeight + 'px';
+	    }, false);
+	}}
+
+	expandTextarea('speaker_bio');
+
+	$('#beacon_type').bind('change', function() {
+		    var elements = $('div.beacon_container').children().hide(); // hide all the elements
+		    var value = $(this).val();
+
+		    if (value) {
+		    if (value.length) { // if somethings' selected
+		        elements.filter('.' + value).show(); // show the ones we want
+		    }
+		    }
+	  }).trigger('change');
+
+	  //alert($('.nav-tabs .active').text());
+
+	 //$(function(){
+  //var hash = window.location.hash;
+  //alert(hash);
+  //hash && $('ul.nav a[href="' + hash + '"]').tab('show');
+
+  //$('.nav-tabs a').click(function (e) {
+    //$(this).tab('show');
+    //var scrollmem = $('body').scrollTop() || $('html').scrollTop();
+    //window.location.hash = this.hash;
+    //$('html,body').scrollTop(scrollmem);
+  //});
+//});
+	  
+	 $('a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
+         //e.preventDefault();
+         //e.stopPropagation();
+
+         var $active_tab = $('.nav-tabs .active').text().trim();
+   	     //alert($active_tab);
+         if ($active_tab != 'Event Info') {
+		      $('#addButton').show();
+	      } else {
+		      if ($active_tab == 'Event Info') {
+		    	  $('#addButton').hide();
+		      }
+	      }
+
+         var query_cancelBtn = $('#cancelButton');
+         var query_addBtn = $('#addButton');
+
+         if (query_cancelBtn.is(':visible')) {
+             if (query_addBtn.is(':visible')) {
+            	 $('#addButton').hide();    
+             }
+         }
+
+        // $.fn.dataTable.tables( {visible: true, api: true} ).columns.adjust();
+         
+         //if (document.getElementById("cancelButton")) {
+   		  //if (document.getElementById("addButton")) {
+   			  //$('#addButton').hide();
+   		  //}
+   	  //}
+         
+         
+         //$(this).parents('li').hide();
+     });
+	  
+	  if (document.getElementById("actab")) {
+
+		  //Then this is event list add, change style property
+		  document.getElementById("dashboardDiv").classList.remove("dashboard");
+		  document.getElementById("dashboardDiv").classList.add("editlistdashboard");
+		  	  
+	      var act_tab = document.getElementById("actab").value;
+	 
+	      //alert(act_tab);
+	      if (act_tab != '') {
+		      $('#addButton').hide();
+	      } else {
+	    	  var $active_tab = $('.nav-tabs .active').text().trim();
+	    	  //alert($active_tab);
+	          if ($active_tab == 'Event Info') {
+	 		      $('#addButton').hide();
+	 	      } else {
+		          $('#addButton').show();
+	 	      }
+	      }
+
+	      //var $active_tab = $('.nav-tabs .active').text().trim();
+
+	      //if ($active_tab == 'Event Info') {
+		    //  $('#addButton').hide();
+	      //}
+	  }
+		
+      $(".view_chosen").on("click", function (event) {
+          event.preventDefault();    
+      });
+      
+      //$("div.panel-body table").delegate('tr', 'click', function() {
+      //$("#records-event tbody").delegate('tr', 'click', function() {
+      $("#records-event tbody tr").on('click', function() {
+          //$("div.panel-body table tr").removeClass("highlight");
+          $("#records-event tbody tr").removeClass("highlight");
+    	  var selected = $(this).hasClass("highlight");
+    	  var noData = "No Data";
+    	  
+    	  if (!selected) {
+        	  $(this).addClass("highlight");
+    	  }
+          //if ($(this).attr('data-event') !== undefined) {
+              //alert($_GET['page']);
+              //alert($_GET['event']);
+              $("#home_row1").empty();
+              $("#home_row2").empty();
+              //alert($(this).attr('data-event'));
+             // populateTable.getActivity($(this).attr('data-event'));
+              $.ajax({
+      			type: 'POST',
+      			url: "/pages/modules/admin/home_row1.php",
+      			data: {id : $(this).attr('data-event')},
+      			timeout: 30000,
+      			success: function (data) {
+     				//console.log(data.text);
+      				//alert(data.text);
+      				if (data != " " && data != '') {
+      					document.getElementById("home_row1").innerHTML += data;    
+      				} else {
+      					document.getElementById("home_row1").innerHTML = noData;
+      				}
+      				 
+      			},
+      			error: function(request, status, err) {
+      				if(status == 'timeout') {
+      					alert('Ajax took too long');
+      				} else {
+      					console.log(err.getMessage());
+      				}
+      			}
+      		});
+            $.ajax({
+        	  type: 'POST',
+        	  url: "/pages/modules/admin/home_row2.php",
+        	  data: {id : $(this).attr('data-event')},
+        	  timeout: 30000,
+        	  success: function (data) {
+        	  //console.log(data.text);
+        	  //alert(data.text);
+        	      if (data != " " && data != '') {
+        		      document.getElementById("home_row2").innerHTML += data;
+        	      } else {
+        	    	  document.getElementById("home_row2").innerHTML = noData;
+            	      //if (document.getElementById("home_row1").innerHTML === '') {
+                	      //if ($.active == 0) {
+                	          //alert($.active);
+                	         
+                	    //      alert("Nothing to report!!!");
+                	      //    alert($.active);
+                	      //}
+            	      //}
+        	      }
+        	   
+        	  },
+        	  error: function(request, status, error) {
+        	      if(status == 'timeout') {
+        	          alert('Ajax took too long');
+        	      } else {
+        	    	  //var err = eval('(' + request.responseText + ')');
+        	    	  alert(request.responseText);
+        	          //console.log(err.getMessage());
+        	      }
+        	  }
+        	});
+                	
+          //}
+      });
+	   $(function() {
+	    $("#sortable").sortable({
+	        stop: function() {
+	           var order = $("#sortable").sortable("serialize", {key:'position[]'});
+	           $inputs = $(".hidden_position");
+	           for (var i = 0; i < $inputs.length; i++) {
+	           	$inputs[i].setAttribute("name", order.split('position[]=')[i+1]);
+	           }
+	        }
+   		 });
+	    if($('.logo_ex')[0] !== undefined && $(".logo_ex")[0].value > 0) $('.file-caption-name')[0].innerHTML = ($(".logo_ex")[0].value);
+	   	});
+	 	$('.table_pick > tbody > tr').on('click', function (event) {
+	 		if ($(this).attr('data-href') !== undefined)
+	    		document.location = '' + $(this).attr('data-href');
+	 	});
+	 	//$('.date_pick').datetimepicker({minDate: new Date()});
+	 	$.datetimepicker.setLocale('en');
+	 	$('.date_pick').datetimepicker({
+	 		//pickerPosition: "top-left" ,
+	 		widgetPositioning: {
+                        horizontal: 'left',
+                        vertical: 'bottom'
+                    },
+	 		
+	 		dayOfWeekStart : 1,
+		 	lang: 'en',
+		 	disabledDates:['1986/01/08','1986/01/09','1986/01/10'],
+		 	//startDate:      '1986/01/05',
+		 	step: 15
+	 	});
+		$(".logo_ex").fileinput({'showUpload':false, 'previewFileType':'any', 'showPreview' : false});
+		$(".edit_direct").on("click", function (event) {
+			document.location = '/Organizer' + $(this).attr('data-href');
+		});
+		$(function() {
+		    $(document).tooltip();
+				$(".download_btn").on("click", function (event) {
+					//alert($(this).val());
+					downloadable.graph(barGraph.eventType ? barGraph.eventType : smallBarGraph.eventType, $(this).val());
+				});
+		});
+		
+		<?php
+		    $new_evt = 0;
+		    $edit_event = 0;
+		    
+		   
+		    if (isset($_GET['action']) && ($_GET['action'] == 'new_event' || $_GET['action'] == 'new_speaker'
+		            || $_GET['action'] == 'new_session' || $_GET['action'] == 'new_exhibitor'
+		            || $_GET['action'] == 'new_sponsor' || $_GET['action'] == 'new_beacon'
+		            || $_GET['action'] == 'new_notification' || $_GET['action'] == 'new_content')) {
+		        $new_evt = 1;	
+		    }
+		    $get_action = $_GET['action'];
+		    //echo "alert('$get_action');"; 
+		    $get_specific = $_GET['specific'];
+		    //echo "alert('$get_specific');";
+		    
+		    if ($get_action) {
+		    	//edit event and $get_action contains event code
+		    	$edit_event = 1;
+		    }
+		    
+			if (isset($_GET['specific']) && $parseAPI->isBeacon($_GET['specific'])) {
+				//echo $_GET['specific'];
+				echo "$(function() {
+			 		tableFill.selectFill('organizer_hourly', ". $info['beacon_graph'] .");
+			 	});";
+			} else if((!isset($_GET['page']) && count($info) > 0) || $_GET['action'] == 'analytics' && $_GET['specific'] != 'Speakers' && $_GET['specific'] != 'Notifications' && $_GET['specific'] != 'Sesssions') {
+				//console.log($_GET['page']);
+				//console.log($_SESSION['eventId']);
+				echo "$(function() {
+			 		tableFill.selectFill('organizer', ". $info['beacon_graph'] .");
+			 	});";
+			} else if ($_GET['specific'] == 'Sessions') {
+				echo "$(function() {
+				    tableFill.selectFill('organizer_session', ". $info['beacon_graph'] .");
+				});";
+			} 
+			else if($_GET['specific'] == 'Speakers') {
+				//echo $_GET['specific'];
+				echo "$(function() {
+			 		tableFill.selectFill('organizer_speakers', ". $info['beacon_graph'] .");
+			 	});";
+			}?>
+			
+		});
+		
+		  // with plugin options
+		  $("#event_logo").fileinput({'showUpload':false});
+		 // $('#beacon_exhibitor').tooltip('hide');
+		  $('#beacon_exhibitor').select({
+			  buttonTitle: function() {},
+			  });
+	</script>
+	<?php include_once("pages/modules/admin/js_loads.php"); ?>
+</body>
+</html>
+>>>>>>> .r446

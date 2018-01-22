@@ -1,0 +1,85 @@
+<?php
+	/**
+	  * @uses parseInit to connect to Parse Database
+	  */
+	require_once ($_SERVER['DOCUMENT_ROOT']."/pages/modules/parseInit.php");
+	use Parse\ParseQuery;
+	use Parse\ParseUser;
+
+	class InitialModel {
+		/**
+		 * @var $eventObj   The returned object of the parse Query
+		 * @var $timezone   The Timezone of the current Event
+		 * @var $startDate  The starting date of the Event
+		 * @var $endDate    The ending date of the Event
+		 * @var $sessionObj The Session Array info from the DB specified for the Event
+		 * @var $speakers   SpeakerId array of all speakers in event
+		 */
+		public $eventObj;
+		public $timezone;
+		public $startDate;
+		public $endDate;
+		public $sessionObj;
+		public $speakers;
+		/**
+		 * Constructor for Class - Sets up public variables for Controller
+		 */
+		public function __construct() {
+			$query = new ParseQuery("Event");
+			$query->containedIn("eventCode", [$_SESSION['eventCode']]);
+			$this->eventObj = $query->first();
+			$this->timezone = $this->eventObj->get("timeZone");
+			$this->buildTimeframe();
+			$this->getSessionObject();
+			$this->getAllSpeakers();
+		}
+		/**
+		 * Sets up start and end date for the event
+		 */
+		public function buildTimeframe() {
+			$this->startDate = $this->_setTimezone($this->eventObj->get("startDate")->format("Y-m-d H:i:s"), $this->timezone);
+			$this->endDate = $this->_setTimezone($this->eventObj->get("endDate")->format("Y-m-d H:i:s"), $this->timezone);
+		}
+		/**
+		 * Sets the Timezone of the event for the specific date
+		 * @param Date $time          The passed date to change
+		 * @param string $newzone     The class's set timezone from the Constructor. Set to null by default
+		 * @param string $defaultzone The default timezone to convert from. Set to UTC by default
+		 * @return Date $date         The Date object that is converted
+		 */
+		public function _setTimezone($time, $newzone = null, $defaultzone = 'UTC') {
+			$date = new DateTime($time, new DateTimeZone($defaultzone));
+			$date->setTimezone(new DateTimeZone($newzone));
+			return $date;
+		}
+		/**
+		 * Obtains the database info from all the sessions based on the start and end times of the Constructor
+		 * @return Array The Database info of all the sessions based on start and end times
+		 */
+		private function getSessionObject() {
+			$query = new ParseQuery("Session");
+			$query->equalTo("eventId", $this->eventObj->getObjectId());
+			$query->ascending('startTime');
+			$query->greaterThanOrEqualTo("startTime", $this->eventObj->get("startDate"));
+			$query->lessThanOrEqualTo("endTime", $this->eventObj->get("endDate"));
+			$this->sessionObj = $query->find();
+		}
+		/**
+		 * Gets all the Speakers in the event
+		 * @return Array All speakerId's from the event
+		 */
+		private function getAllSpeakers() {
+			$total_speakers = array();
+			foreach ($this->sessionObj as $speaker) {
+				if ($speaker->get("speakerIds") != null) {
+					foreach ($speaker->get("speakerIds") as $speakers) {
+						if(!in_array($speakers, $total_speakers))
+							array_push($total_speakers, $speakers);
+					}
+				}
+			}
+			$query = new ParseQuery('Speaker');
+			$query->containedIn('objectId', $total_speakers);
+			$this->speakers = $query->find();
+		}
+	}

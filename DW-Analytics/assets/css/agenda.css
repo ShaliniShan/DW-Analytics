@@ -1,0 +1,144 @@
+body {
+	font-size: 2.1em;
+}
+
+
+.container {
+	margin-bottom: 0;
+	
+}
+.element-background {
+	padding: 30px;
+	background: url('/assets/img/background.jpg');
+	background-size: cover;
+}
+.date_format {
+	font-weight: bold;
+}
+.time_line {
+	color: #888;
+	margin-top: 15px;
+	margin-bottom: 15px;
+	
+}
+.accordion-toggle:after {
+    font-family: 'FontAwesome';
+    content: "\f078";    
+    float: right;
+}
+.accordion-opened, .accordion-toggle:after {    
+    content: "\f054";    
+}
+
+/* Style the buttons that are used to open and close the accordion panel */
+.accordion {
+    background-color: #00BCD4;
+    color: #444;
+    cursor: pointer;
+    width: 400px;
+    text-align: left;
+    outline: none;
+    transition: 0.4s;
+	padding: 7.5px;
+	padding-left: 15px;
+	padding-right: 15px;
+	margin-top: 15px;
+	margin-left: 40px;
+	border-radius: 5px;
+}
+
+/* Add a background color to the button if it is clicked on (add the .active class with JS), and when you move the mouse over it (hover) */
+.accordion.active, .accordion:hover {
+    background-color: #444;
+}
+
+/* Style the accordion panel. Note: hidden by default */
+.panel {
+    text-align:left;
+    margin-right:140px;
+    height: 200px;
+    background-color: #00BCD4;
+    display:none;
+    overflow: hidden;
+    transition: 0.6s ease-in-out;
+    opacity: 0;
+    width : 50%;
+	color: #444;
+	
+}
+
+/* The "show" class is added to the accordion panel when the user clicks on one of the buttons. This will show the panel content */
+.panel.show {display:block;
+	height: 200px;
+	width: 50%;
+	border-radius: 5px;
+	opacity: 0;width : 50%;
+	margin-right:140px;
+    padding: 7.5px;
+	padding-left: 15px;
+	padding-right: 15px;
+}
+.time_border{
+	margin-bottom: 10px;
+	display: block;
+	padding-right: 15px;
+	color: #888;
+	
+}
+.img[src=''] {
+   display: none;
+}
+.time_border1{
+	margin-bottom: 10px;
+	display: block;
+	padding-right: 15px;
+	color: #888;
+}
+.event-logo {
+	margin: 10px 5px;
+}
+.speaker-logo {
+	border-radius: 5px;
+	height: 50px;
+	margin: 10px 5px;
+}
+.center-block {
+   margin-left:auto;
+   margin-right:auto;
+   display:block;
+}
+// in case your dealing with a inline element apply this to the parent 
+.text-center {
+   text-align:center
+}
+
+.ending-note {
+	border-radius: 5px;
+	margin-top: 50px;
+	text-align: center;
+	color: #FEFDFB;
+	background: url("/assets/img/slide_back.jpg");
+}
+a {
+	color: #02E0FF;
+	text-decoration: none;
+}
+:focus, :active {
+  outline: 0;
+}
+
+a:hover {
+	text-decoration: underline;
+	}
+
+
+a:visited{
+	color: red;
+}
+footer {
+	border-top: 1px solid #444;
+	margin-top: 1px;
+	font-size: 0.7em;
+	
+	
+}

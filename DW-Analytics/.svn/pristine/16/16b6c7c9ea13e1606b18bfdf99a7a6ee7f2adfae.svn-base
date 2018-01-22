@@ -1,0 +1,11 @@
+<?php 
+	ini_set("display_errors", 'off');
+	require_once("pages/modules/config.php");
+	include("pages/modules/mainhead.php");
+	$pageTitle = "Digital Wavefront";
+	include_once('head.php');
+	include_once('header.php');
+ ?>
+</body>
+</html>
+	
